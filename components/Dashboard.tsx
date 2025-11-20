@@ -86,7 +86,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             profile: { email: user.email!, name: '', address: '', phone: '' },
             role: 'user',
             status: 'active',
-            credits: 30,
+            credits: 0, // Changed from 30 to 0 for consistency
             uploadCount: 0,
             mapping: {},
             accountTable: DEFAULT_ACCOUNT_TABLE,

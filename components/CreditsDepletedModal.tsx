@@ -31,8 +31,8 @@ const CreditsDepletedModal: React.FC<CreditsDepletedModalProps> = ({ onClose, on
           )}
           <div className="bg-gray-100 p-4 rounded-md">
               <p className="text-sm text-gray-500">Contact Support:</p>
-              <a href="mailto:info@webpole.co.nz" className="font-semibold text-blue-600 hover:underline">
-                  info@webpole.co.nz
+              <a href="mailto:nzgstsimple@gmail.com" className="font-semibold text-blue-600 hover:underline">
+                  nzgstsimple@gmail.com
               </a>
           </div>
           <button 

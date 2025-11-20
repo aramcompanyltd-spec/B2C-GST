@@ -56,8 +56,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ initialIsLogin, onClose }) => {
             },
             role: 'user',
             status: 'active',
-            credits: 30, // Default credits for new users
+            credits: 0, // Default credits for new users (Changed from 30 to 0)
             uploadCount: 0, // Initialize upload count
+            uploadHistory: [], // Initialize upload history
             mapping: {},
             accountTable: DEFAULT_ACCOUNT_TABLE,
           });
@@ -124,7 +125,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ initialIsLogin, onClose }) => {
         </div>
 
         <h2 className="text-xl font-bold text-center text-gray-800 mb-6">
-          {isLogin ? 'Sign in to your account' : 'Create your free account'}
+          {isLogin ? 'Sign in to your account' : 'Create your account'}
         </h2>
         {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
         {message && <p className="text-green-500 text-sm mb-4 text-center">{message}</p>}

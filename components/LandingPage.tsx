@@ -1,63 +1,97 @@
 
-
 import React, { useState, PropsWithChildren } from 'react';
 import AuthScreen from './AuthScreen';
 
-const NavHeader = ({ onSignIn, onSignUp, onGoHome, onNavClick }: { onSignIn: () => void; onSignUp: () => void; onGoHome: () => void, onNavClick: (id: string) => void; }) => (
-    <header className="sticky top-0 bg-white/80 backdrop-blur-lg z-40 shadow-sm">
+const NavHeader = ({ onSignIn, onSignUp, onGoHome, onNavClick, onShowFaq }: { onSignIn: () => void; onSignUp: () => void; onGoHome: () => void, onNavClick: (id: string) => void; onShowFaq: () => void; }) => (
+    <header className="sticky top-0 bg-white/90 backdrop-blur-lg z-40 shadow-sm border-b border-gray-100">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="text-xl md:text-2xl font-extrabold tracking-tight text-gray-800 cursor-pointer whitespace-nowrap" onClick={onGoHome}>
-                NZ GST <span className="text-blue-600">Simple</span>
+            <div className="flex items-center space-x-2 cursor-pointer" onClick={onGoHome}>
+                 <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="h-8 w-auto object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <div className="text-xl md:text-2xl font-extrabold tracking-tight text-gray-900">
+                    NZ GST <span className="text-blue-600">Simple</span>
+                </div>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
-                <button onClick={() => onNavClick('features')} className="text-gray-600 hover:text-blue-600">Features</button>
-                <button onClick={() => onNavClick('how-it-works')} className="text-gray-600 hover:text-blue-600">How It Works</button>
-                <button onClick={() => onNavClick('faq')} className="text-gray-600 hover:text-blue-600">FAQ</button>
-                <button onClick={() => onNavClick('contact')} className="text-gray-600 hover:text-blue-600">Contact</button>
+            <nav className="hidden md:flex items-center space-x-8 font-medium">
+                <button onClick={() => onNavClick('features')} className="text-gray-600 hover:text-blue-600 transition-colors">Features</button>
+                <button onClick={() => onNavClick('how-it-works')} className="text-gray-600 hover:text-blue-600 transition-colors">How It Works</button>
+                <button onClick={onShowFaq} className="text-gray-600 hover:text-blue-600 transition-colors">FAQ</button>
+                <button onClick={() => onNavClick('contact')} className="text-gray-600 hover:text-blue-600 transition-colors">Contact</button>
             </nav>
-            <div className="flex items-center space-x-2 md:space-x-4">
-                <button onClick={onSignIn} className="text-gray-600 font-medium hover:text-blue-600 text-sm md:text-base whitespace-nowrap">Sign In</button>
-                <button onClick={onSignUp} className="bg-blue-600 text-white px-3 md:px-5 py-2 rounded-full font-medium hover:bg-blue-700 transition-colors text-sm md:text-base whitespace-nowrap">Sign up</button>
+            <div className="flex items-center space-x-3 md:space-x-4">
+                <button onClick={onSignIn} className="text-gray-600 font-bold hover:text-blue-600 text-sm md:text-base whitespace-nowrap px-3 py-2">Sign In</button>
+                <button onClick={onSignUp} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm md:text-base whitespace-nowrap">
+                    Sign Up
+                </button>
             </div>
         </div>
     </header>
 );
 
 const Hero = ({ onSignUp }: { onSignUp: () => void; }) => (
-    <section className="relative text-white py-20 md:py-32" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=2684&auto=format&fit=crop')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-black opacity-60"></div>
-        <div className="relative container mx-auto px-6 text-center">
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-4">Simplify Your Complex NZ GST Filing.</h1>
-            <p className="text-lg md:text-xl text-gray-200 max-w-3xl mx-auto mb-8">
-                The smartest automated GST calculation solution. Save valuable time by uploading your bank transaction CSV file just once.
+    <section className="relative text-white py-24 md:py-32 overflow-hidden">
+         {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=2000&auto=format&fit=crop" alt="Accounting Background" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/95 to-blue-800/80"></div>
+        </div>
+
+        <div className="relative z-10 container mx-auto px-6 text-center">
+            <span className="inline-block py-1 px-3 rounded-full bg-blue-500/30 border border-blue-300/50 text-blue-100 text-sm font-bold mb-6 tracking-wide uppercase">
+                New Zealand's Most Private GST Tool
+            </span>
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6 tracking-tight">
+                GST Returns, <br className="hidden md:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-white">Simplified & Secure.</span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-200 max-w-2xl mx-auto mb-10 leading-relaxed">
+                Process your bank statements instantly in your browser. 
+                <strong> Your financial data never leaves your device.</strong> 
+                The safest way to categorize transactions and file your IRD return.
             </p>
-            <button onClick={onSignUp} className="bg-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-transform transform hover:scale-105">
-                Get Started Now
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <button onClick={onSignUp} className="w-full sm:w-auto bg-white text-blue-900 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-lg">
+                    Sign Up Now
+                </button>
+                <button onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} className="w-full sm:w-auto bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white/10 transition-colors">
+                    See How It Works
+                </button>
+            </div>
+            <div className="mt-12 flex justify-center items-center space-x-8 opacity-80 text-sm font-medium">
+                <div className="flex items-center"><span className="text-green-400 mr-2">✓</span> Instant Setup</div>
+                <div className="flex items-center"><span className="text-green-400 mr-2">✓</span> Local Data Processing</div>
+                <div className="flex items-center"><span className="text-green-400 mr-2">✓</span> Supports All NZ Banks</div>
+            </div>
         </div>
     </section>
 );
 
 const HowItWorks = () => {
     const steps = [
-        { num: 1, title: 'Upload', description: "Easily upload your bank transaction CSV or Excel files with a simple drag and drop." },
-        { num: 2, title: 'Review', description: "NZ GST Simple automatically categorizes all transactions and calculates the GST. Review the results on our intuitive dashboard and make adjustments as needed." },
-        { num: 3, title: 'Download', description: "Download your completed GST report as a CSV or Excel file to prepare for your IRD filing. For your privacy, your data is never stored on our servers." }
+        { num: 1, title: 'Upload Securely', description: "Drag & drop your CSV/XLSX files. Processing happens 100% in your browser for maximum privacy." },
+        { num: 2, title: 'Auto-Categorize', description: "Our smart engine automatically sorts transactions into Sales, Expenses, and more based on NZ tax rules." },
+        { num: 3, title: 'File with IRD', description: "Instantly see your GST-to-pay or refund. Download a clean CSV report ready for your accountant or Xero." }
     ];
 
     return (
-        <section id="how-it-works" className="py-20 bg-gray-50">
+        <section id="how-it-works" className="py-24 bg-gray-50">
             <div className="container mx-auto px-6">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Prepare Your GST Return in 3 Simple Steps</h2>
-                    <p className="text-gray-600 mt-2">Effortless and accurate, from start to finish.</p>
+                <div className="text-center mb-16">
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900">GST Returns in 3 Simple Steps</h2>
+                    <p className="text-gray-600 mt-4 text-lg max-w-2xl mx-auto">We've stripped away the complex accounting jargon. Just upload, review, and you're done.</p>
                 </div>
-                <div className="grid md:grid-cols-3 gap-10 text-center">
+                <div className="grid md:grid-cols-3 gap-12">
                     {steps.map(step => (
-                        <div key={step.num} className="bg-white p-8 rounded-lg shadow-md">
-                            <div className="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6">{step.num}</div>
-                            <h3 className="text-2xl font-semibold mb-3">{step.title}</h3>
-                            <p className="text-gray-600">{step.description}</p>
+                        <div key={step.num} className="relative bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg">
+                                {step.num}
+                            </div>
+                            <h3 className="text-xl font-bold mb-4 mt-6 text-center text-gray-800">{step.title}</h3>
+                            <p className="text-gray-600 text-center leading-relaxed">{step.description}</p>
                         </div>
                     ))}
                 </div>
@@ -68,28 +102,28 @@ const HowItWorks = () => {
 
 const Features = () => {
     const featuresData = [
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>, title: "Automatic Bank CSV Analysis", description: "Supports major NZ banks including ASB, BNZ, ANZ, Westpac, and Kiwibank, and automatically recognizes file formats." },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>, title: "AI-Powered Auto-Categorization", description: "Intelligent rules instantly classify hundreds of transactions into income, purchase, and expense categories." },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>, title: "Convenient Bulk Editing", description: "Select multiple items at once to change categories or GST rates, dramatically reducing manual correction time." },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>, title: "Real-Time GST Calculation", description: "The GST amount to pay or be refunded is instantly recalculated and displayed on the dashboard whenever changes are made." },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>, title: "Visual Dashboard", description: "Clearly understand your income, purchases, and expense details at a glance with color-coded cards and charts." },
-        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>, title: "Secure Cloud Management", description: "All data is securely managed on the Google Firebase platform with SSL encryption, and only you can access your information." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>, title: "100% Private & Secure", description: "Your bank transaction rows are processed locally on your computer. We don't store your financial history on our servers." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, title: "Smart Categorization", description: "Don't waste hours manual entry. Our tool recognizes vendors like Bunnings, BP, and Spark to auto-assign GST codes." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, title: "Instant Calculations", description: "The moment you upload, your GST to pay/refund is calculated. See live updates as you make adjustments." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>, title: "Supports All NZ Banks", description: "Compatible with CSV exports from ASB, BNZ, Westpac, ANZ, Kiwibank, and Co-operative Bank." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>, title: "Bulk Editing Power", description: "Need to change 50 'Uber' transactions to Entertainment? Do it in one click with our bulk edit tool." },
+        { icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>, title: "Export for Accountant", description: "Download a professional CSV journal of your GST return to send directly to your accountant or import into Xero." },
     ];
     return (
-        <section id="features" className="py-20 bg-white">
+        <section id="features" className="py-24 bg-white">
             <div className="container mx-auto px-6">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Powerful & Smart Features</h2>
-                    <p className="text-gray-600 mt-2">Everything you need for a stress-free GST return.</p>
+                <div className="text-center mb-16">
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Why Businesses Trust Us</h2>
+                    <p className="text-gray-600 mt-4 text-lg">Built specifically for New Zealand sole traders and small businesses.</p>
                 </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
                     {featuresData.map(feature => (
-                        <div key={feature.title} className="flex items-start space-x-4">
-                            <div className="flex-shrink-0 bg-blue-100 text-blue-600 p-3 rounded-full">{feature.icon}</div>
-                            <div>
-                                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                                <p className="text-gray-600">{feature.description}</p>
+                        <div key={feature.title} className="flex flex-col items-start group">
+                            <div className="flex-shrink-0 bg-blue-100 text-blue-600 p-4 rounded-xl mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                {feature.icon}
                             </div>
+                            <h3 className="text-xl font-bold mb-2 text-gray-900">{feature.title}</h3>
+                            <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                         </div>
                     ))}
                 </div>
@@ -98,77 +132,23 @@ const Features = () => {
     );
 };
 
-const FaqItem = ({ q, a }: { q: string, a: string }) => (
-    <details className="border-b last:border-b-0 py-4">
-        <summary className="font-semibold text-lg cursor-pointer hover:text-blue-600">{q}</summary>
-        <p className="mt-2 text-gray-600 leading-relaxed">{a}</p>
-    </details>
-);
-
-
-const FAQ = () => (
-    <section id="faq" className="py-20 bg-gray-50">
-        <div className="container mx-auto px-6">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Frequently Asked Questions</h2>
-            </div>
-            <div className="max-w-3xl mx-auto">
-                <FaqItem
-                    q="Is my financial data secure?"
-                    a="Your privacy is our top priority. NZ GST Simple processes all files directly in your web browser. We do not upload or store your financial transaction data on our servers. When you close the browser tab, the data is gone. This design ensures the highest level of security and confidentiality."
-                />
-                 <FaqItem
-                    q="What happens to my uploaded files after processing?"
-                    a="Files are never uploaded to our servers. All processes—reading files, categorizing transactions, and calculating GST—happen locally within your computer's browser. This means your sensitive financial information never leaves your device, ensuring complete privacy."
-                />
-                <FaqItem
-                    q="What is GST in New Zealand, and who needs to register?"
-                    a="GST (Goods and Services Tax) is a 15% tax on most goods and services in New Zealand. Businesses with an annual turnover that exceeds or is expected to exceed $60,000 must register for GST with the IRD. You can also register voluntarily to claim GST back on your business expenses."
-                />
-                <FaqItem
-                    q="How often do I need to file a GST return?"
-                    a="The filing frequency (monthly, two-monthly, or six-monthly) depends on your annual turnover. Most small businesses file every two months. If your turnover is less than $500,000, you can opt for a six-monthly cycle. NZ GST Simple makes it easy to generate a report for any period."
-                />
-                <FaqItem
-                    q="Can I correct transactions that are automatically miscategorized?"
-                    a="Absolutely. While our system is highly accurate, you can easily correct any classification. Click the 'Edit' button on an individual transaction or use the 'Bulk Edit' feature to change multiple transactions at once."
-                />
-                <FaqItem
-                    q="Why are the GST claim rates different for motor vehicle and entertainment expenses?"
-                    a="Under New Zealand tax law, some expenses have limitations on GST claims. For example, entertainment expenses are generally limited to a 50% claim, and specific adjustment rules apply to motor vehicle expenses used for both business and private purposes. Our system automatically applies these standard rates to ensure accuracy."
-                />
-                <FaqItem
-                    q="How accurate is the automatic categorization?"
-                    a="Our AI-powered classification engine boasts high accuracy, using sophisticated rules based on common New Zealand business transactions. However, we always recommend reviewing the categorized transactions. Our easy-to-use individual and bulk editing tools make it simple to make any adjustments needed for a perfect GST return."
-                />
-                <FaqItem
-                    q="What if my bank isn't listed or my file format is different?"
-                    a="Our system is designed to be flexible and currently supports standard CSV/XLSX formats from all major New Zealand banks. If you encounter an issue with a specific file, please contact our customer support. We are continuously working to improve compatibility and support a wider range of bank formats."
-                />
-            </div>
-        </div>
-    </section>
-);
-
-// FIX: Used PropsWithChildren to correctly type the component, resolving errors with the children prop.
-// FIX: Refactored `LegalPageWrapper` to use a named interface for props to resolve TypeScript error.
 interface LegalPageWrapperProps {
     title: string;
     onBack: () => void;
 }
 
 const LegalPageWrapper = ({ title, children, onBack }: PropsWithChildren<LegalPageWrapperProps>) => (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-white min-h-screen">
         <div className="container mx-auto px-6">
             <div className="max-w-4xl mx-auto">
-                 <button onClick={onBack} className="mb-8 text-blue-600 hover:underline flex items-center">
+                 <button onClick={onBack} className="mb-8 text-gray-500 hover:text-blue-600 hover:underline flex items-center transition-colors font-medium">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
                     </svg>
-                    Return to Home
+                    Back to Home
                 </button>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center mb-12">{title}</h2>
-                <div className="prose max-w-none bg-gray-50 p-8 rounded-lg shadow-md">
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12">{title}</h2>
+                <div className="prose prose-lg prose-blue max-w-none bg-white">
                     {children}
                 </div>
             </div>
@@ -178,93 +158,177 @@ const LegalPageWrapper = ({ title, children, onBack }: PropsWithChildren<LegalPa
 
 const TermsPage = ({ onBack }: { onBack: () => void }) => (
     <LegalPageWrapper title="Terms and Conditions" onBack={onBack}>
-        <h4><strong>Service Overview</strong></h4>
+        <h4><strong>1. Service Overview</strong></h4>
         <p>This service, "NZ GST Simple," provides an automated tool to assist New Zealand businesses in calculating their Goods and Services Tax (GST) returns by processing bank transaction files (CSV/XLSX).</p>
-        <h4><strong>User Account</strong></h4>
-        <p>You are responsible for maintaining the confidentiality of your account and password and for restricting access to your computer. You agree to accept responsibility for all activities that occur under your account or password. You must ensure that the details you provide us are correct and complete.</p>
-        <h4><strong>Payment and Credits</strong></h4>
-        <p>The service may be offered under various subscription plans or a credit system. Payment must be made for any subscription plan or credit purchase you make. Due to the nature of digital services, we do not offer refunds on purchases once the service has been utilized.</p>
-        <h4><strong>User Responsibilities</strong></h4>
+        <h4><strong>2. Privacy & Data Security</strong></h4>
+        <p>We operate on a "Local Processing" model. Your bank transaction files are processed within your browser session. We do not store your transaction rows on our database. We only store your user profile, account settings, and usage statistics (e.g., number of files processed).</p>
+        <h4><strong>3. Payment and Credits</strong></h4>
+        <p>The service uses a pre-paid credit system. Payment must be made for any credit purchase. Credits are non-refundable once purchased, except where required by New Zealand Consumer Law.</p>
+        <h4><strong>4. Accuracy & Liability</strong></h4>
         <p>You are solely responsible for the accuracy and completeness of the data you upload. "NZ GST Simple" is an accounting aid tool and not a substitute for professional tax advice. The final responsibility for the accuracy and submission of GST returns to the IRD lies with the user.</p>
-        <h4><strong>Service Limitation and Suspension</strong></h4>
-        <p>We may need to suspend the service from time to time for maintenance or other operational reasons. We also reserve the right to suspend or terminate your account if we determine that you have violated these terms.</p>
-        <h4><strong>Disclaimer of Liability</strong></h4>
-        <p>While we make every effort to ensure the accuracy of the calculations and information provided, "NZ GST Simple" is provided "as is" without any warranty. We are not liable for any financial loss or damages that may arise from the use of our service.</p>
-        <h4><strong>Governing Law</strong></h4>
-        <p>These terms and conditions are governed by and construed in accordance with the laws of New Zealand.</p>
     </LegalPageWrapper>
 );
 
 const PrivacyPage = ({ onBack }: { onBack: () => void }) => (
     <LegalPageWrapper title="Privacy Policy" onBack={onBack}>
-        <h4><strong>Information We Collect</strong></h4>
+        <p className="lead">Your privacy is critical to us. This policy outlines how we handle your data with a focus on security and minimization.</p>
+        
+        <h4><strong>1. What We Collect</strong></h4>
         <ul>
-            <li><strong>At Sign-up:</strong> Your name and email address.</li>
-            <li><strong>Profile Information (Optional):</strong> Your address and phone number.</li>
-            <li><strong>During Service Use:</strong> Transaction data from your uploaded files (we strive to de-identify this data where possible), your IP address, and browser type.</li>
+            <li><strong>Account Info:</strong> Name, Email, and Encrypted Password (managed via Google Firebase Auth).</li>
+            <li><strong>Usage Data:</strong> We track <em>how many</em> files you upload to deduct credits, but we do not store the <em>content</em> of those files permanently.</li>
         </ul>
-        <h4><strong>Use of Information</strong></h4>
-        <p>We use the information collected to provide and improve our service, offer customer support, and for marketing communications (which you can opt out of).</p>
-        <h4><strong>Information Sharing</strong></h4>
-        <p>We do not share personally identifiable information with third parties except as required by law or with trusted partners who assist us in operating our service, such as Google Firebase. These partners are bound by confidentiality obligations.</p>
-        <h4><strong>Data Security</strong></h4>
-        <p>We are committed to protecting your data. We leverage the security features of the Google Firebase platform and implement our own access controls to safeguard your information.</p>
-        <h4><strong>User Rights</strong></h4>
-        <p>Under New Zealand's Privacy Act 2020, you have the right to request access to, correction of, or deletion of your personal information.</p>
-        <h4><strong>Cookie Policy</strong></h4>
-        <p>We use cookies to operate and administer the site, and to improve your experience on it. A cookie is a piece of information sent to your browser from a website.</p>
-        <h4><strong>Contact Information</strong></h4>
-        <p>If you have any questions or concerns about your privacy, please contact us at <a href="mailto:contact@gstsimple.co.nz">contact@gstsimple.co.nz</a>.</p>
+
+        <h4><strong>2. What We DO NOT Collect</strong></h4>
+        <ul>
+            <li>We do <strong>not</strong> store your bank transaction history on our servers.</li>
+            <li>We do <strong>not</strong> sell your data to third parties.</li>
+        </ul>
+
+        <h4><strong>3. How Processing Works</strong></h4>
+        <p>When you upload a CSV, our code runs inside your web browser to parse and categorize it. The results are shown to you immediately. Once you close your browser tab or log out, that transaction data is cleared from memory.</p>
     </LegalPageWrapper>
 );
 
 const AboutPage = ({ onBack }: { onBack: () => void }) => (
     <LegalPageWrapper title="About Us" onBack={onBack}>
         <h4><strong>Our Mission</strong></h4>
-        <p>At NZ GST Simple, our mission is to empower small businesses, freelancers, and sole traders across New Zealand by simplifying the complexities of GST compliance. We believe that managing taxes shouldn't be a barrier to success. By providing an intuitive, accurate, and secure tool that saves time and reduces stress, we are dedicated to helping you focus on what you do best: running your business.</p>
-        <h4><strong>About the Company</strong></h4>
-        <p>We are a passionate team of developers and finance professionals based in New Zealand. Frustrated by the lack of simple, modern tools for GST filing, we decided to build the solution we wanted for ourselves. We combine cutting-edge technology with a deep understanding of the New Zealand tax system to create a product that is both powerful and surprisingly easy to use.</p>
-        <h4><strong>Core Values</strong></h4>
-        <ul>
-            <li><strong>Simplicity:</strong> We design our software to be straightforward and user-friendly. No accounting jargon or complicated setups.</li>
-            <li><strong>Accuracy:</strong> Our system is built on the latest New Zealand tax rules to ensure your calculations are reliable.</li>
-            <li><strong>Security:</strong> Your financial data is sensitive. We use industry-leading security practices, leveraging Google's secure Firebase platform, to keep your information safe and private.</li>
-            <li><strong>Customer-Centric:</strong> We are constantly listening to feedback from users like you to improve our service and add features that matter.</li>
-        </ul>
+        <p>At NZ GST Simple, our mission is to empower small businesses, freelancers, and sole traders across New Zealand by simplifying the complexities of GST compliance.</p>
+        <p>We realized that most accounting software is too expensive ($30-$60/month) and too complex for simple sole traders who just want to file their return every 2 or 6 months.</p>
+        
+        <h4><strong>The "Local-First" Philosophy</strong></h4>
+        <p>We built this tool with a security-first mindset. By processing data locally on your device, we eliminate the risk of mass data breaches involving financial history. You keep control of your data.</p>
+        
         <h4><strong>Contact Us</strong></h4>
-        <p>We are excited to have you on this journey. If you have any questions, feedback, or suggestions, please don't hesitate to reach out. Your input helps us build a better tool for everyone.</p>
+        <p>Questions? Email us at <a href="mailto:nzgstsimple@gmail.com">nzgstsimple@gmail.com</a></p>
     </LegalPageWrapper>
 );
 
-const Footer = ({ onShowTerms, onShowPrivacy, onShowAbout }: { onShowTerms: () => void; onShowPrivacy: () => void; onShowAbout: () => void; }) => (
-    <footer id="contact" className="bg-gray-800 text-white py-12">
+const FaqPage = ({ onBack }: { onBack: () => void }) => (
+    <LegalPageWrapper title="Help Center & FAQ" onBack={onBack}>
+        <div className="space-y-12">
+            <section>
+                <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6">1. Getting Started</h3>
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">How do I start using the app?</h4>
+                        <p className="text-gray-600 mt-1">Simply click the "Sign Up" button, create an account with your email, and you're ready to go. Once logged in, click "New Task" to start your first GST return.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Can I save my progress and finish later?</h4>
+                        <p className="text-gray-600 mt-1">No. To protect your privacy, we <strong>do not save your bank transactions</strong> to our database. The application works in "Session Mode". This means you should upload your files, categorize them, and download your results in one sitting. If you close the browser tab, the transaction data is wiped for security.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Can I manage multiple companies?</h4>
+                        <p className="text-gray-600 mt-1">Yes. If you are an Accountant or Bookkeeper, you can request "Agent" status which allows you to save separate client profiles (Name & IRD Number) under one login.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6">2. Uploading & Files</h3>
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Which file formats are supported?</h4>
+                        <p className="text-gray-600 mt-1">We currently support <strong>.CSV</strong> (Comma Separated Values) files. Most New Zealand banks (ASB, ANZ, BNZ, Westpac, Kiwibank) allow you to export your transaction history in this format via internet banking.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">What columns must be in my CSV file?</h4>
+                        <p className="text-gray-600 mt-1">The system looks for standard headers like <code>Date</code>, <code>Amount</code>, and description fields (<code>Payee</code>, <code>Memo</code>, <code>Details</code>). You don't usually need to edit the bank's file; our system is trained to read the default exports from major NZ banks.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Can I upload multiple files at once?</h4>
+                        <p className="text-gray-600 mt-1">Yes! You can upload up to 10 files in a single session. This is useful if you have multiple bank accounts (e.g., a Cheque account and a Credit Card) that need to be combined into one GST return.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6">3. Categorization & Editing</h3>
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">How does the auto-categorization work?</h4>
+                        <p className="text-gray-600 mt-1">We scan the description of each transaction for keywords. For example, "Z Energy" is automatically tagged as "Motor Vehicle Expenses" and "Countdown" as "Purchases".</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">What if a transaction is categorized incorrectly?</h4>
+                        <p className="text-gray-600 mt-1">You can manually change any category by clicking the Edit (pencil) icon on the transaction row. If you change a category, the system will remember this mapping for future uploads associated with your account.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">How do I change categories for many items at once?</h4>
+                        <p className="text-gray-600 mt-1">Use the checkboxes on the left side of the transaction table to select multiple items. A "Bulk Action" bar will appear at the top, allowing you to assign a single category to all selected items instantly.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Can I add my own custom account categories?</h4>
+                        <p className="text-gray-600 mt-1">Yes. Click the "Account Table" button in the top menu. You can add new expense or income categories, set their GST ratio (e.g., 50% claimable), and assign accounting codes.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6">4. Billing & Credits</h3>
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">How does pricing work?</h4>
+                        <p className="text-gray-600 mt-1">We use a "Pay As You Go" credit system. There are no monthly subscriptions. You purchase credits, and they are deducted only when you process files.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">How much does it cost?</h4>
+                        <div className="text-gray-600 mt-1">
+                            <p className="mb-2">Processing a single session (uploading files, categorizing, and generating a return) costs <strong>20 credits</strong>.</p>
+                            <p className="mb-2">We offer volume discounts when you top up:</p>
+                            <ul className="list-disc pl-5 space-y-1">
+                                <li><strong>$20 Top Up:</strong> 20 Credits (Standard)</li>
+                                <li><strong>$50 Top Up:</strong> 50 Credits + <span className="text-green-600 font-bold">5 Free Bonus Credits</span> (Total 55)</li>
+                                <li><strong>$100 Top Up:</strong> 100 Credits + <span className="text-green-600 font-bold">15 Free Bonus Credits</span> (Total 115)</li>
+                            </ul>
+                            <p className="mt-2 text-sm text-gray-500">1 Credit is approximately $1 NZD.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg text-blue-700">Do my credits expire?</h4>
+                        <p className="text-gray-600 mt-1">No, your purchased credits do not expire as long as your account remains active.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </LegalPageWrapper>
+);
+
+const Footer = ({ onShowTerms, onShowPrivacy, onShowAbout, onShowFaq }: { onShowTerms: () => void; onShowPrivacy: () => void; onShowAbout: () => void; onShowFaq: () => void; }) => (
+    <footer id="contact" className="bg-gray-900 text-gray-300 py-16 border-t border-gray-800">
         <div className="container mx-auto px-6">
-            <div className="grid md:grid-cols-4 gap-8">
+            <div className="grid md:grid-cols-4 gap-12">
                 <div>
-                    <h3 className="text-lg font-bold mb-2">NZ GST Simple</h3>
-                    <p className="text-gray-400">Making GST filing easier.</p>
+                    <h3 className="text-white text-lg font-bold mb-4">NZ GST Simple</h3>
+                    <p className="text-sm leading-relaxed">
+                        The secure, pay-as-you-go alternative to expensive accounting software. Made with ❤️ in New Zealand.
+                    </p>
                 </div>
                 <div>
-                    <h4 className="font-semibold mb-3">Links</h4>
-                    <ul className="space-y-2">
-                        <li><button onClick={onShowAbout} className="text-gray-400 hover:text-white text-left">About Us</button></li>
+                    <h4 className="text-white font-semibold mb-4">Company</h4>
+                    <ul className="space-y-2 text-sm">
+                        <li><button onClick={onShowAbout} className="hover:text-white transition-colors text-left">About Us</button></li>
+                        <li><button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="hover:text-white transition-colors text-left">Features</button></li>
+                        <li><button onClick={onShowFaq} className="hover:text-white transition-colors text-left">Help Center & FAQ</button></li>
                     </ul>
                 </div>
                  <div>
-                    <h4 className="font-semibold mb-3">Legal</h4>
-                    <ul className="space-y-2">
-                        <li><button onClick={onShowTerms} className="text-gray-400 hover:text-white text-left">Terms and Conditions</button></li>
-                        <li><button onClick={onShowPrivacy} className="text-gray-400 hover:text-white text-left">Privacy Policy</button></li>
+                    <h4 className="text-white font-semibold mb-4">Legal</h4>
+                    <ul className="space-y-2 text-sm">
+                        <li><button onClick={onShowTerms} className="hover:text-white transition-colors text-left">Terms and Conditions</button></li>
+                        <li><button onClick={onShowPrivacy} className="hover:text-white transition-colors text-left">Privacy Policy</button></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 className="font-semibold mb-3">Contact</h4>
-                    <ul className="space-y-2 text-gray-400">
-                        <li><a href="mailto:info@webpole.co.nz" className="hover:text-white">info@webpole.co.nz</a></li>
+                    <h4 className="text-white font-semibold mb-4">Contact</h4>
+                    <ul className="space-y-2 text-sm">
+                        <li><a href="mailto:nzgstsimple@gmail.com" className="hover:text-white transition-colors">nzgstsimple@gmail.com</a></li>
+                        <li className="pt-2">022-678-5500</li>
                     </ul>
                 </div>
             </div>
-            <div className="mt-10 pt-8 border-t border-gray-700 text-center text-gray-500 text-sm">
+            <div className="mt-12 pt-8 border-t border-gray-800 text-center text-xs text-gray-500">
                 &copy; {new Date().getFullYear()} NZ GST Simple. All rights reserved.
             </div>
         </div>
@@ -274,7 +338,7 @@ const Footer = ({ onShowTerms, onShowPrivacy, onShowAbout }: { onShowTerms: () =
 export default function LandingPage() {
     const [showAuth, setShowAuth] = useState(false);
     const [isLogin, setIsLogin] = useState(true);
-    const [activeView, setActiveView] = useState<'main' | 'terms' | 'privacy' | 'about'>('main');
+    const [activeView, setActiveView] = useState<'main' | 'terms' | 'privacy' | 'about' | 'faq'>('main');
 
     const openAuth = (loginMode: boolean) => {
         setIsLogin(loginMode);
@@ -286,7 +350,7 @@ export default function LandingPage() {
         window.scrollTo(0, 0);
     };
     
-    const handleShowInfoPage = (view: 'terms' | 'privacy' | 'about') => {
+    const handleShowInfoPage = (view: 'terms' | 'privacy' | 'about' | 'faq') => {
         setActiveView(view);
         window.scrollTo(0, 0);
     };
@@ -311,20 +375,21 @@ export default function LandingPage() {
                 return <PrivacyPage onBack={handleGoHome} />;
             case 'about':
                 return <AboutPage onBack={handleGoHome} />;
+            case 'faq':
+                return <FaqPage onBack={handleGoHome} />;
             default:
                 return (
                     <>
                         <Hero onSignUp={() => openAuth(false)} />
                         <HowItWorks />
                         <Features />
-                        <FAQ />
                     </>
                 );
         }
     };
 
     return (
-        <div className="bg-white text-gray-800 antialiased">
+        <div className="bg-white text-gray-800 antialiased font-sans">
             {showAuth && <AuthScreen initialIsLogin={isLogin} onClose={() => setShowAuth(false)} />}
             
             <NavHeader 
@@ -332,9 +397,10 @@ export default function LandingPage() {
                 onSignUp={() => openAuth(false)}
                 onGoHome={handleGoHome}
                 onNavClick={handleNavClick}
+                onShowFaq={() => handleShowInfoPage('faq')}
             />
             
-            <main>
+            <main className="min-h-screen">
                 {renderContent()}
             </main>
 
@@ -342,6 +408,7 @@ export default function LandingPage() {
                 onShowTerms={() => handleShowInfoPage('terms')} 
                 onShowPrivacy={() => handleShowInfoPage('privacy')}
                 onShowAbout={() => handleShowInfoPage('about')}
+                onShowFaq={() => handleShowInfoPage('faq')}
             />
         </div>
     );

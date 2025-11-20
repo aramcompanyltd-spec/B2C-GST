@@ -78,11 +78,9 @@ const Header: React.FC<HeaderProps> = ({ user, settings, onSettingsClick, onAcco
             {isAgentView ? 'Back to Client List' : 'New Task'}
           </button>
         )}
-        {settings.role !== 'user' && (
-            <button onClick={onAccountTableClick} className="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 font-medium">
-                Account table
-            </button>
-        )}
+        <button onClick={onAccountTableClick} className="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 font-medium">
+            Account table
+        </button>
         <button onClick={onHistoryClick} className="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 font-medium">
           History
         </button>

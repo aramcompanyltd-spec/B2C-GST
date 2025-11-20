@@ -5,6 +5,7 @@ import type { FirebaseUser } from './types';
 import { auth, db, appId } from './services/firebase';
 import AuthScreen from './components/AuthScreen';
 import Dashboard from './components/Dashboard';
+import LandingPage from './components/LandingPage';
 
 // Suspended view component defined within App.tsx to avoid creating new files.
 const SuspendedAccountView: React.FC<{ onReturnHome: () => void; }> = ({ onReturnHome }) => {
@@ -20,7 +21,7 @@ const SuspendedAccountView: React.FC<{ onReturnHome: () => void; }> = ({ onRetur
                     <br />
                     Please contact support to request reactivation.
                 </p>
-                <a href="mailto:info@livingkorea.co.nz?subject=account%20activate%20request" className="inline-block w-full bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition duration-300 font-semibold text-lg shadow-md">
+                <a href="mailto:nzgstsimple@gmail.com?subject=account%20activate%20request" className="inline-block w-full bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition duration-300 font-semibold text-lg shadow-md">
                     Contact Support
                 </a>
                 <p className="mt-4 text-sm text-gray-500">
@@ -96,7 +97,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800">
-      {user && authStatus === 'authenticated' ? <Dashboard user={user} /> : <AuthScreen initialIsLogin={true} />}
+      {user && authStatus === 'authenticated' ? <Dashboard user={user} /> : <LandingPage />}
     </div>
   );
 }
