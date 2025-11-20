@@ -111,10 +111,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
           line_items: lineItems,
           success_url: returnUrl, 
           cancel_url: returnUrl,
+          client_reference_id: user.uid,
           metadata: {
             userId: user.uid,
             creditsToAdd: totalCredits.toString(),
             type: 'credit_topup'
+          },
+          // CRITICAL: Ensure metadata is copied to the Payment Intent so the webhook/extension can see it
+          payment_intent_data: {
+             metadata: {
+                userId: user.uid,
+                creditsToAdd: totalCredits.toString(),
+                type: 'credit_topup'
+             }
           }
         });
 
