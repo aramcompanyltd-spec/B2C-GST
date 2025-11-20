@@ -104,8 +104,19 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ initialIsLogin, onClose }) => {
 
         {/* App Branding & Description */}
         <div className="text-center mb-8 border-b border-gray-100 pb-6">
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 mb-2">
-            NZ GST <span className="text-blue-600">Simple</span>
+            <img 
+              src="/logo.png" 
+              alt="NZ GST Simple" 
+              className="mx-auto h-20 w-auto mb-4 object-contain"
+              onError={(e) => {
+                // Fallback if image fails
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            {/* Fallback text title if image is missing */}
+            <h1 className="hidden text-3xl font-extrabold tracking-tight text-gray-900 mb-2">
+                NZ GST <span className="text-blue-600">Simple</span>
             </h1>
             <p className="text-gray-500 text-sm">
             Automated bank transaction categorization and instant GST calculation for New Zealand businesses.
@@ -161,7 +172,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ initialIsLogin, onClose }) => {
           )}
 
           <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-300 font-semibold">
-            {isLogin ? 'Sign In' : 'Start Free Trial'}
+            {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
         <div className="text-center mt-4">

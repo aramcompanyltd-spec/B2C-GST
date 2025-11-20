@@ -16,15 +16,26 @@ interface HeaderProps {
   showNewClientTaskButton?: boolean;
   isAgentView?: boolean;
   clientName?: string;
+  onTopUp?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, settings, onSettingsClick, onAccountTableClick, onHistoryClick, onNewTask, onNewClientTask, showNewTaskButton, showNewClientTaskButton, isAgentView, clientName }) => {
+const Header: React.FC<HeaderProps> = ({ user, settings, onSettingsClick, onAccountTableClick, onHistoryClick, onNewTask, onNewClientTask, showNewTaskButton, showNewClientTaskButton, isAgentView, clientName, onTopUp }) => {
   const greeting = clientName ? `Client: ${clientName}` : `Welcome, ${user.email || 'Guest'}`;
 
   return (
     <header className="flex justify-between items-center pb-4 border-b border-gray-200">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
+        <img 
+          src="/logo.png" 
+          alt="NZ GST Simple" 
+          className="h-10 w-auto mb-2 object-contain"
+          onError={(e) => {
+            // Fallback if image fails
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+          }}
+        />
+        <h1 className="hidden text-2xl font-extrabold tracking-tight text-gray-900">
           NZ GST <span className="text-blue-600">Simple</span>
         </h1>
         <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
@@ -32,13 +43,27 @@ const Header: React.FC<HeaderProps> = ({ user, settings, onSettingsClick, onAcco
           <span className="h-4 border-l border-gray-300"></span>
           <span>Uploads: <strong>{settings.uploadCount ?? 0}</strong></span>
           <span className="h-4 border-l border-gray-300"></span>
-          <div className="flex items-center space-x-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.158-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.168-.217c-1.22-.04-2.5.97-2.5 2.366 0 1.253 1.116 2.166 2.243 2.166 1.026 0 1.787-.723 1.787-1.633 0-.501-.246-.917-.757-1.248-.593-.38-1.543-.848-1.543-1.536 0-.57.462-1.013 1.08-1.013.388 0 .736.16.98.403z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 2a10 10 0 100-20 10 10 0 000 20z" clipRule="evenodd" /></svg>
-            <span>Credits: {
-              settings.role === 'admin'
-              ? <strong className="text-blue-600 font-semibold">Unlimited</strong>
-              : <strong className={settings.credits !== undefined && settings.credits <= 5 ? 'text-red-500 animate-pulse' : 'text-gray-800'}>{settings.credits ?? 0}</strong>
-            }</span>
+          <div className="flex items-center">
+            <div className="flex items-center space-x-1 mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.158-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.168-.217c-1.22-.04-2.5.97-2.5 2.366 0 1.253 1.116 2.166 2.243 2.166 1.026 0 1.787-.723 1.787-1.633 0-.501-.246-.917-.757-1.248-.593-.38-1.543-.848-1.543-1.536 0-.57.462-1.013 1.08-1.013.388 0 .736.16.98.403z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 2a10 10 0 100-20 10 10 0 000 20z" clipRule="evenodd" /></svg>
+                <span>Credits: {
+                settings.role === 'admin'
+                ? <strong className="text-blue-600 font-semibold">Unlimited</strong>
+                : <strong className={settings.credits !== undefined && settings.credits < 20 ? 'text-red-500 animate-pulse' : 'text-gray-800'}>{settings.credits ?? 0}</strong>
+                }</span>
+            </div>
+            {settings.role !== 'admin' && onTopUp && (
+              <button 
+                onClick={onTopUp}
+                className="ml-2 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow-md hover:bg-blue-700 transition-all flex items-center uppercase tracking-wide hover:shadow-lg transform hover:-translate-y-0.5"
+                title="Top Up Credits"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Top Up
+              </button>
+            )}
           </div>
         </div>
       </div>

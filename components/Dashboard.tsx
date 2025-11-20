@@ -23,6 +23,7 @@ import CreditsDepletedModal from './CreditsDepletedModal';
 import AgentDashboard from './AgentDashboard';
 import AccountTableModal from './AccountTableModal';
 import UploadHistoryModal from './UploadHistoryModal';
+import PaymentModal from './PaymentModal';
 
 
 interface DashboardProps {
@@ -37,6 +38,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAccountTableOpen, setIsAccountTableOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('calculator');
@@ -196,7 +198,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, []);
 
   const handleProcessFiles = (filesToProcess: FileSlot[]) => {
-    if (!isAdmin && settings?.credits !== undefined && settings.credits <= 0) {
+    // COST: 20 credits per upload session.
+    const UPLOAD_COST = 20;
+    
+    if (!isAdmin && settings?.credits !== undefined && settings.credits < UPLOAD_COST) {
       setShowCreditsModal(true);
       return;
     }
@@ -303,7 +308,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               const userData = userDoc.data() as Settings;
               const newUploadCount = (userData.uploadCount || 0) + 1;
               const currentCredits = userData.credits ?? 0;
-              const newCreditCount = !isAdmin ? Math.max(0, currentCredits - 1) : currentCredits;
+              
+              // Deduct 20 credits per upload session
+              const newCreditCount = !isAdmin ? Math.max(0, currentCredits - UPLOAD_COST) : currentCredits;
               
               // Store history in the user document array instead of subcollection to avoid permission issues
               const currentHistory = (userData.uploadHistory || []) as UploadRecord[];
@@ -440,7 +447,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   if (settings.role === 'agent' && !selectedClient) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
-        <Header user={user} settings={settings} onSettingsClick={() => setIsSettingsOpen(true)} onAccountTableClick={() => setIsAccountTableOpen(true)} onHistoryClick={() => setIsHistoryOpen(true)} onNewTask={handleNewTask} showNewTaskButton={false} />
+        <Header 
+            user={user} 
+            settings={settings} 
+            onSettingsClick={() => setIsSettingsOpen(true)} 
+            onAccountTableClick={() => setIsAccountTableOpen(true)} 
+            onHistoryClick={() => setIsHistoryOpen(true)} 
+            onNewTask={handleNewTask} 
+            showNewTaskButton={false}
+            onTopUp={() => setIsPaymentModalOpen(true)} 
+        />
         <AgentDashboard user={user} onClientSelect={handleClientSelect} settings={settings} />
 
         {isSettingsOpen && (
@@ -465,6 +481,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             onClose={() => setIsHistoryOpen(false)} 
           />
         )}
+        {isPaymentModalOpen && (
+          <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} />
+        )}
       </div>
     )
   }
@@ -487,6 +506,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         showNewClientTaskButton={showNewClientTaskButton}
         isAgentView={settings.role === 'agent'}
         clientName={selectedClient?.companyName}
+        onTopUp={() => setIsPaymentModalOpen(true)}
       />
 
       {isAdmin && (
@@ -554,9 +574,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             onClose={() => setIsHistoryOpen(false)} 
           />
         )}
+        
+      {isPaymentModalOpen && (
+        <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} />
+      )}
 
       {showCreditsModal && (
-        <CreditsDepletedModal onClose={() => setShowCreditsModal(false)} />
+        <CreditsDepletedModal 
+            onClose={() => setShowCreditsModal(false)} 
+            onTopUp={() => {
+                setShowCreditsModal(false);
+                setIsPaymentModalOpen(true);
+            }}
+        />
       )}
 
       {transactionToDelete && (
