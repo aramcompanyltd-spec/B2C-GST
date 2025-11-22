@@ -46,6 +46,10 @@ export interface Settings {
   role?: 'user' | 'admin' | 'agent';
   uploadCount?: number;
   uploadHistory?: UploadRecord[];
+  // New fields for payment debugging
+  paymentStatus?: string;
+  lastPaymentId?: string;
+  lastPaymentDate?: any;
 }
 
 export interface ManagedUser {
