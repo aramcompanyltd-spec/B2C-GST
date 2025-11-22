@@ -98,8 +98,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
         return null;
       }).filter(Boolean);
 
-      // Use absolute URL without query parameters to satisfy Stripe validation
-      const returnUrl = window.location.origin + window.location.pathname;
+      // Use absolute URL with success query param to notify dashboard on return
+      const returnUrl = `${window.location.origin}/?payment_success=true`;
 
       // Create a doc in the checkout_sessions collection.
       const docRef = await db
@@ -110,14 +110,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
           mode: 'payment',
           line_items: lineItems,
           success_url: returnUrl, 
-          cancel_url: returnUrl,
+          cancel_url: window.location.origin,
           client_reference_id: user.uid,
           metadata: {
             userId: user.uid,
             creditsToAdd: totalCredits.toString(),
             type: 'credit_topup'
           },
-          // CRITICAL: Ensure metadata is copied to the Payment Intent so the webhook/extension can see it
+          // CRITICAL: Ensure metadata is copied to the Payment Intent so the webhook/extension can see it in 'payments' collection
           payment_intent_data: {
              metadata: {
                 userId: user.uid,
