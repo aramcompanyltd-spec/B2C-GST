@@ -9,7 +9,8 @@ const APP_ID = 'default-app-id'; // Identifier used in Firestore path
 
 /**
  * Listener 1: Monitor Checkout Sessions
- * This triggers when the Stripe Extension updates the checkout_sessions document (e.g., status changes to 'paid').
+ * This triggers when the Stripe Extension updates the checkout_sessions document.
+ * We specifically listen for 'payment_status' becoming 'paid', which matches the checkout.session.completed webhook.
  */
 exports.monitorCheckoutSession = functions.firestore
   .document('customers/{userId}/checkout_sessions/{sessionId}')
@@ -19,31 +20,33 @@ exports.monitorCheckoutSession = functions.firestore
 
     // Exit if document is deleted
     if (!change.after.exists) {
-        console.log(`[monitorCheckoutSession] Document deleted: ${sessionId}`);
         return null;
     }
 
     const sessionData = change.after.data();
-    console.log(`[monitorCheckoutSession] Doc Update: ${sessionId}`, JSON.stringify(sessionData));
-
-    // Check both potential status fields
-    const status = sessionData.payment_status || sessionData.status; 
     
-    // Check if payment is successful and not already processed
-    // Stripe status is usually 'paid', but 'succeeded' is also possible in some contexts
-    if (['paid', 'succeeded'].includes(status) && !sessionData.creditsAdded) {
+    // Log to confirm we are seeing the field the user noticed
+    console.log(`[monitorCheckoutSession] Session ID: ${sessionId}, payment_status: ${sessionData.payment_status}`);
+
+    // CHECK: Explicitly look for "payment_status: 'paid'" as provided in the Stripe webhook payload.
+    // This is the field that confirms the payment is complete in a Checkout Session.
+    const isPaid = sessionData.payment_status === 'paid' || sessionData.status === 'succeeded';
+    const alreadyProcessed = sessionData.creditsAdded === true;
+
+    if (isPaid && !alreadyProcessed) {
       const metadata = sessionData.metadata || {};
       const creditsToAdd = parseInt(metadata.creditsToAdd || '0', 10);
+      const type = metadata.type;
       
-      console.log(`[monitorCheckoutSession] Payment detected. Status: ${status}, CreditsToAdd: ${creditsToAdd}, Type: ${metadata.type}`);
+      console.log(`[monitorCheckoutSession] Payment confirmed (Status: ${sessionData.payment_status}). Processing ${creditsToAdd} credits.`);
 
-      // Verify this transaction is for a credit top-up
-      if (metadata.type === 'credit_topup' && creditsToAdd > 0) {
+      // Verify this transaction is for a credit top-up and has valid credits
+      if (type === 'credit_topup' && creditsToAdd > 0) {
         try {
-          // 1. Mark session as processed immediately
+          // 1. Mark session as processed immediately to prevent duplicate credits (Idempotency)
           await change.after.ref.set({ creditsAdded: true }, { merge: true });
 
-          // 2. Update the user's credits
+          // 2. Update the user's credits atomically
           const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
           
           await userRef.set({
@@ -59,7 +62,7 @@ exports.monitorCheckoutSession = functions.firestore
           console.error('[monitorCheckoutSession] ERROR updating user credits:', error);
         }
       } else {
-          console.log(`[monitorCheckoutSession] SKIPPED. Condition met? Type=${metadata.type}, Credits>0=${creditsToAdd > 0}`);
+          console.log(`[monitorCheckoutSession] SKIPPED. Valid payment but metadata mismatch. Type: ${type}, Credits: ${creditsToAdd}`);
       }
     }
     return null;
@@ -68,7 +71,7 @@ exports.monitorCheckoutSession = functions.firestore
 /**
  * Listener 2: Monitor Payments Collection
  * This triggers if the Stripe Extension writes to the 'payments' collection.
- * This is often where the 'checkout.session.completed' or 'invoice.payment_succeeded' data lands.
+ * This serves as a backup if checkout_sessions isn't updated or for different payment flows.
  */
 exports.addCreditsOnPayment = functions.firestore
   .document('customers/{userId}/payments/{paymentId}')
@@ -79,21 +82,20 @@ exports.addCreditsOnPayment = functions.firestore
     if (!change.after.exists) return null;
 
     const paymentData = change.after.data();
-    console.log(`[addCreditsOnPayment] Doc Update: ${paymentId}`, JSON.stringify(paymentData));
-
+    
     // Avoid double processing
     if (paymentData.creditsAdded) return null;
 
     const status = paymentData.status || paymentData.payment_status;
+    // Stripe PaymentIntents use 'succeeded', Checkout Sessions use 'paid'.
     const isSuccess = ['succeeded', 'paid'].includes(status);
     
     if (isSuccess) {
        const metadata = paymentData.metadata || {};
        const creditsToAdd = parseInt(metadata.creditsToAdd || '0', 10);
 
-       console.log(`[addCreditsOnPayment] Success payment found. CreditsToAdd: ${creditsToAdd}`);
-
        if (metadata.type === 'credit_topup' && creditsToAdd > 0) {
+         console.log(`[addCreditsOnPayment] Success payment found for ${paymentId}. Credits: ${creditsToAdd}`);
          try {
             await change.after.ref.set({ creditsAdded: true }, { merge: true });
 
