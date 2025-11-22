@@ -47,81 +47,64 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [selectedClient, setSelectedClient] = useState<ManagedUser | null>(null);
   const [showNewTaskConfirm, setShowNewTaskConfirm] = useState(false);
   const [showNewClientTaskConfirm, setShowNewClientTaskConfirm] = useState(false);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
   useEffect(() => {
     const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
     if (!hasSeenOnboarding) {
       setShowOnboarding(true);
     }
-
-    // Check for payment success URL param
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment_success') === 'true') {
-      setShowPaymentSuccess(true);
-      // Clean up the URL
-      window.history.replaceState({}, '', window.location.pathname);
-      // Auto-dismiss after a few seconds
-      setTimeout(() => setShowPaymentSuccess(false), 5000);
-    }
   }, []);
 
   const fetchSettingsAndAdminStatus = useCallback(async () => {
     if (!user) return;
     const userRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid);
-    // Use onSnapshot for real-time updates (especially important for credit updates after payment)
-    const unsubscribe = userRef.onSnapshot((doc) => {
-        if (doc.exists) {
-            let data = doc.data() as Settings;
+    const userDocSnap = await userRef.get();
 
-            // Migration for old users: if accountTable doesn't exist, add the default one.
-            if (!data.accountTable || data.accountTable.length === 0) {
-                data.accountTable = DEFAULT_ACCOUNT_TABLE;
-            }
+    if (userDocSnap.exists) {
+        let data = userDocSnap.data() as Settings;
 
-            setSettings({
-                profile: data.profile || { email: user.email!, name: '', address: '', phone: '' },
-                mapping: data.mapping || {},
-                accountTable: data.accountTable,
-                status: data.status,
-                credits: data.credits,
-                role: data.role || 'user',
-                uploadCount: data.uploadCount || 0,
-                uploadHistory: data.uploadHistory || [],
-            });
-
-            setIsAdmin(data.role === 'admin');
-        } else {
-             // Handle initial creation if doc doesn't exist (same logic as before, just moved)
-             console.warn(`User document for ${user.uid} not found. Creating default.`);
-             const defaultSettings: Settings = {
-                profile: { email: user.email!, name: '', address: '', phone: '' },
-                role: 'user',
-                status: 'active',
-                credits: 0, 
-                uploadCount: 0,
-                mapping: {},
-                accountTable: DEFAULT_ACCOUNT_TABLE,
-                uploadHistory: [],
-            };
-            userRef.set(defaultSettings).catch(e => console.error("Create default failed", e));
+        // Migration for old users: if accountTable doesn't exist, add the default one.
+        if (!data.accountTable || data.accountTable.length === 0) {
+            data.accountTable = DEFAULT_ACCOUNT_TABLE;
         }
-    }, (err) => {
-        console.error("Error listening to user settings:", err);
-        setError("Failed to load user settings.");
-    });
 
-    return () => unsubscribe();
+        setSettings({
+            profile: data.profile || { email: user.email!, name: '', address: '', phone: '' },
+            mapping: data.mapping || {},
+            accountTable: data.accountTable,
+            status: data.status,
+            credits: data.credits,
+            role: data.role || 'user',
+            uploadCount: data.uploadCount || 0,
+            uploadHistory: data.uploadHistory || [],
+        });
+
+        setIsAdmin(data.role === 'admin');
+    } else {
+        console.warn(`User document for ${user.uid} not found. Creating a default document.`);
+        const defaultSettings: Settings = {
+            profile: { email: user.email!, name: '', address: '', phone: '' },
+            role: 'user',
+            status: 'active',
+            credits: 0, // Changed from 30 to 0 for consistency
+            uploadCount: 0,
+            mapping: {},
+            accountTable: DEFAULT_ACCOUNT_TABLE,
+            uploadHistory: [],
+        };
+        try {
+            await userRef.set(defaultSettings);
+            setSettings(defaultSettings);
+            setIsAdmin(false);
+        } catch (e) {
+            console.error("Failed to create default user document:", e);
+            setError("There was a problem setting up your account. Please contact support.");
+        }
+    }
   }, [user]);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    fetchSettingsAndAdminStatus().then(unsub => {
-        if (unsub) unsubscribe = unsub;
-    });
-    return () => {
-        if (unsubscribe) unsubscribe();
-    };
+    fetchSettingsAndAdminStatus();
   }, [fetchSettingsAndAdminStatus]);
 
   const activeSettings = useMemo(() => {
@@ -186,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const clientRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('managedUsers').doc(selectedClient.id);
       await clientRef.set(newSettings, { merge: true });
     } else {
-      // Local state update handled by onSnapshot
+      setSettings(prev => prev ? { ...prev, ...newSettings } as Settings : null);
       const userRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid);
       await userRef.set(newSettings, { merge: true });
     }
@@ -350,7 +333,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
               return { newUploadCount, newCreditCount, updatedHistory };
             })
-            // Local state is updated via onSnapshot, so we don't need to manually setSettings here
+            .then((res) => {
+              if (res) {
+                // Update local state only after the transaction is successfully committed.
+                setSettings(s => s ? { 
+                    ...s, 
+                    uploadCount: res.newUploadCount, 
+                    credits: res.newCreditCount,
+                    uploadHistory: res.updatedHistory
+                } : null);
+              }
+            })
             .catch(err => {
               console.error("Failed to update user stats:", err);
               setError("Failed to save usage data. Please refresh and check your credits.");
@@ -489,7 +482,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           />
         )}
         {isPaymentModalOpen && (
-          <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} />
+          <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} currentCredits={settings.credits} />
         )}
       </div>
     )
@@ -501,19 +494,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Main Calculator / Admin View
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      {/* Payment Success Notification */}
-      {showPaymentSuccess && (
-        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-6 py-4 rounded-lg shadow-xl flex items-center animate-bounce-in">
-           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-           </svg>
-           <div>
-             <h4 className="font-bold">Payment Verified</h4>
-             <p className="text-sm opacity-90">Your credits are updating...</p>
-           </div>
-        </div>
-      )}
-
       <Header 
         user={user} 
         settings={settings} 
@@ -596,7 +576,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         )}
         
       {isPaymentModalOpen && (
-        <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} />
+        <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} currentCredits={settings.credits} />
       )}
 
       {showCreditsModal && (

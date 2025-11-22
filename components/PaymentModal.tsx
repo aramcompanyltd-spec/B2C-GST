@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth } from '../services/firebase';
+import { db, auth, appId } from '../services/firebase';
 import type { FirebaseUser } from '../types';
 
 interface PaymentModalProps {
   user: FirebaseUser;
   onClose: () => void;
+  currentCredits?: number;
 }
 
 interface PricingTier {
@@ -22,7 +23,7 @@ const TIERS: PricingTier[] = [
   { id: 'tier_100', amount: 100, baseCredits: 100, bonusCredits: 15, color: 'bg-indigo-50 border-indigo-200' },
 ];
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose, currentCredits }) => {
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({
     'tier_20': 0,
     'tier_50': 0,
@@ -31,15 +32,40 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isTakingLong, setIsTakingLong] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [addedCreditsAmount, setAddedCreditsAmount] = useState(0);
   
   const unsubscribeRef = useRef<() => void>(() => {});
 
+  // Monitor user credits for successful update from backend
   useEffect(() => {
-    return () => {
-      unsubscribeRef.current();
-    };
-  }, []);
+      const userRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid);
+      
+      let previousCredits = currentCredits || -1;
+
+      const userUnsub = userRef.onSnapshot((doc) => {
+          const data = doc.data();
+          if (!data) return;
+          
+          const newCredits = data.credits || 0;
+          
+          if (previousCredits === -1) {
+              previousCredits = newCredits;
+          } else if (newCredits > previousCredits) {
+               // Credits increased, assume payment success
+               setAddedCreditsAmount(newCredits - previousCredits);
+               setPaymentSuccess(true);
+               setIsLoading(false);
+          }
+      });
+      
+      return () => {
+          unsubscribeRef.current();
+          userUnsub();
+      };
+  }, [user.uid, currentCredits]);
 
   const updateQuantity = (id: string, delta: number) => {
     setQuantities(prev => ({
@@ -72,6 +98,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
     setIsLoading(true);
     setError('');
     setCheckoutUrl(null);
+    setSessionId(null);
     setIsTakingLong(false);
 
     // Set a timeout to warn the user if it takes too long (e.g. 10 seconds)
@@ -98,8 +125,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
         return null;
       }).filter(Boolean);
 
-      // Use absolute URL with success query param to notify dashboard on return
-      const returnUrl = `${window.location.origin}/?payment_success=true`;
+      // Use absolute URL without query parameters to satisfy Stripe validation
+      const returnUrl = window.location.origin + window.location.pathname;
 
       // Create a doc in the checkout_sessions collection.
       const docRef = await db
@@ -110,7 +137,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
           mode: 'payment',
           line_items: lineItems,
           success_url: returnUrl, 
-          cancel_url: window.location.origin,
+          cancel_url: returnUrl,
           client_reference_id: user.uid,
           metadata: {
             userId: user.uid,
@@ -126,6 +153,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
              }
           }
         });
+        
+      setSessionId(docRef.id);
+      console.log(`Created checkout_sessions doc: customers/${user.uid}/checkout_sessions/${docRef.id}`);
 
       // Listen for the sessionId or url to be written to the doc by the extension
       unsubscribeRef.current = docRef.onSnapshot((snap) => {
@@ -166,6 +196,31 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
       setIsLoading(false);
     }
   };
+
+  // Success View
+  if (paymentSuccess) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8 text-center" onClick={e => e.stopPropagation()}>
+                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+                    <svg className="h-10 w-10 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">Payment Successful!</h2>
+                <p className="text-gray-600 mb-8">
+                    Your account has been topped up with <strong className="text-gray-900">{addedCreditsAmount} credits</strong>.
+                </p>
+                <button 
+                    onClick={onClose}
+                    className="w-full py-3 px-6 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition shadow-lg"
+                >
+                    Return to Dashboard
+                </button>
+            </div>
+        </div>
+      );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -231,6 +286,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ user, onClose }) => {
             <div className="flex justify-between items-end mb-6">
               <div className="text-gray-600">
                 <p>Total Credits to add: <strong className="text-gray-900 text-lg">{totalCredits}</strong></p>
+                {sessionId && <p className="text-xs text-gray-400 mt-1 select-all">Session Ref: {sessionId}</p>}
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500 mb-1">Total to pay</p>

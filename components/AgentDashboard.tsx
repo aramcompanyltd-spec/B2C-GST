@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db, appId } from '../services/firebase';
 import type { FirebaseUser, ManagedUser, Settings } from '../types';
 import Pagination from './Pagination';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import PaymentModal from './PaymentModal'; // Ensure PaymentModal is imported
 
 interface AgentDashboardProps {
   user: FirebaseUser;
