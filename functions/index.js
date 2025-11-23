@@ -20,19 +20,21 @@ exports.monitorCheckoutSession = functions.firestore
 
     // Exit if document is deleted
     if (!change.after.exists) {
+        console.log(`[monitorCheckoutSession] Document deleted: ${sessionId}`);
         return null;
     }
 
     const sessionData = change.after.data();
     
+    // Detailed logging for debugging
+    console.log(`[monitorCheckoutSession] Processing ${sessionId} for user ${userId}. Status: ${sessionData.status}, PaymentStatus: ${sessionData.payment_status}`);
+
     // Check strictly for processed flag to ensure idempotency
     if (sessionData.creditsAdded) {
+        console.log(`[monitorCheckoutSession] Session ${sessionId} already processed. Skipping.`);
         return null;
     }
 
-    console.log(`[monitorCheckoutSession] Session ID: ${sessionId}, Status: ${sessionData.status}, PaymentStatus: ${sessionData.payment_status}`);
-
-    // Broad success check
     const status = sessionData.status;
     const paymentStatus = sessionData.payment_status;
     
@@ -44,19 +46,22 @@ exports.monitorCheckoutSession = functions.firestore
 
     if (isPaid) {
       const metadata = sessionData.metadata || {};
+      // Parse credits, defaulting to 0. Handle potential string/number types.
       const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
-      const type = metadata.type;
       
-      console.log(`[monitorCheckoutSession] Payment confirmed. Processing ${creditsToAdd} credits for user ${userId}.`);
+      console.log(`[monitorCheckoutSession] Paid session detected. Credits to add: ${creditsToAdd}. Metadata:`, metadata);
 
-      if (type === 'credit_topup' && creditsToAdd > 0) {
+      // Removed strict check for metadata.type to improve reliability.
+      // If creditsToAdd exists and is positive, we proceed.
+      if (creditsToAdd > 0) {
+        console.log(`[monitorCheckoutSession] Processing ${creditsToAdd} credits for user ${userId}.`);
         try {
           // Atomic update: Mark processed AND add credits
           await db.runTransaction(async (t) => {
               const sessionRef = change.after.ref;
               const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
               
-              // Double check inside transaction
+              // Double check inside transaction to prevent race conditions
               const currentSession = await t.get(sessionRef);
               if (currentSession.data().creditsAdded) return;
 
@@ -74,7 +79,11 @@ exports.monitorCheckoutSession = functions.firestore
         } catch (error) {
           console.error('[monitorCheckoutSession] ERROR updating user credits:', error);
         }
+      } else {
+          console.warn(`[monitorCheckoutSession] Paid session found but creditsToAdd is 0 or invalid. Metadata:`, metadata);
       }
+    } else {
+        console.log(`[monitorCheckoutSession] Session ${sessionId} is not in a paid state yet.`);
     }
     return null;
   });
@@ -94,10 +103,11 @@ exports.addCreditsOnPayment = functions.firestore
 
     const paymentData = change.after.data();
     
-    // Avoid double processing
-    if (paymentData.creditsAdded) return null;
+    // Detailed logging
+    console.log(`[addCreditsOnPayment] Processing payment ${paymentId} for user ${userId}. Status: ${paymentData.status}`);
 
-    console.log(`[addCreditsOnPayment] Payment ID: ${paymentId}, Status: ${paymentData.status}, PaymentStatus: ${paymentData.payment_status}`);
+    // Avoid double processing immediately
+    if (paymentData.creditsAdded) return null;
 
     const status = paymentData.status;
     const paymentStatus = paymentData.payment_status;
@@ -114,10 +124,12 @@ exports.addCreditsOnPayment = functions.firestore
     if (isSuccess) {
        const metadata = paymentData.metadata || {};
        const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
-       const type = metadata.type;
 
-       if (type === 'credit_topup' && creditsToAdd > 0) {
-         console.log(`[addCreditsOnPayment] Success payment found for ${paymentId}. Credits: ${creditsToAdd}`);
+       console.log(`[addCreditsOnPayment] Successful payment detected. Credits to add: ${creditsToAdd}.`);
+
+       // Removed strict check for metadata.type. 
+       // If we have creditsToAdd in metadata, we should process it.
+       if (creditsToAdd > 0) {
          try {
             await db.runTransaction(async (t) => {
                 const paymentRef = change.after.ref;
@@ -140,6 +152,9 @@ exports.addCreditsOnPayment = functions.firestore
          } catch (error) {
            console.error('[addCreditsOnPayment] ERROR updating user credits:', error);
          }
+       } else {
+           // Log if payment succeeded but no credits found (useful for debugging)
+           console.log(`[addCreditsOnPayment] Payment succeeded but no creditsToAdd in metadata. ID: ${paymentId}, Metadata:`, metadata);
        }
     }
     
