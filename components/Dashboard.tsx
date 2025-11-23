@@ -30,6 +30,40 @@ interface DashboardProps {
   user: FirebaseUser;
 }
 
+// Helper function to strictly merge user table with default structure
+// ensuring default codes and ratios are enforced while keeping custom categories.
+const mergeWithDefaultTable = (userTable: AccountCategory[]) => {
+    const tableMap = new Map(userTable.map(c => [c.name, c]));
+    
+    // Map standard categories, overwriting details to match standard but preserving IDs if they exist
+    const mergedDefaults = DEFAULT_ACCOUNT_TABLE.map(def => {
+        const existing = tableMap.get(def.name);
+        return existing 
+          ? { ...existing, code: def.code, ratio: def.ratio, isDeletable: def.isDeletable } 
+          : { ...def }; // Clone to avoid reference issues
+    });
+    
+    // Find custom categories (those not in default)
+    const defaultNames = new Set(DEFAULT_ACCOUNT_TABLE.map(d => d.name));
+    
+    // Explicitly filter out legacy categories requested for deletion
+    const deprecatedCategories = new Set([
+        'HO - Body Corp',
+        'HO - Internet',
+        'HO - Maintenance',
+        'HO - Power',
+        'HO - Rates & Water',
+        'Salary and Wages',
+        'Salaries and Wages'
+    ]);
+
+    const customCategories = userTable.filter(c => 
+        !defaultNames.has(c.name) && !deprecatedCategories.has(c.name)
+    );
+    
+    return [...mergedDefaults, ...customCategories];
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -63,15 +97,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     if (userDocSnap.exists) {
         let data = userDocSnap.data() as Settings;
 
-        // Migration for old users: if accountTable doesn't exist, add the default one.
-        if (!data.accountTable || data.accountTable.length === 0) {
-            data.accountTable = DEFAULT_ACCOUNT_TABLE;
-        }
-
         setSettings({
             profile: data.profile || { email: user.email!, name: '', address: '', phone: '' },
             mapping: data.mapping || {},
-            accountTable: data.accountTable,
+            accountTable: data.accountTable || DEFAULT_ACCOUNT_TABLE,
             status: data.status,
             credits: data.credits,
             role: data.role || 'user',
@@ -86,7 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             profile: { email: user.email!, name: '', address: '', phone: '' },
             role: 'user',
             status: 'active',
-            credits: 0, // Changed from 30 to 0 for consistency
+            credits: 0,
             uploadCount: 0,
             mapping: {},
             accountTable: DEFAULT_ACCOUNT_TABLE,
@@ -108,17 +137,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [fetchSettingsAndAdminStatus]);
 
   const activeSettings = useMemo(() => {
-    if (selectedClient) {
-      const clientTable = selectedClient.accountTable && selectedClient.accountTable.length > 0
-        ? selectedClient.accountTable
-        : settings?.accountTable; // Use agent's table if client's is missing or empty
+    // Determine base settings (client or user)
+    const baseSettings = selectedClient ? selectedClient : settings;
+    
+    if (!baseSettings) return null;
 
-      return {
-        mapping: selectedClient.mapping,
-        accountTable: clientTable || DEFAULT_ACCOUNT_TABLE,
-      };
-    }
-    return settings;
+    // Always enforce default table structure to ensure codes/ratios are up to date
+    // This fixes issues where old data might be missing codes.
+    const currentTable = baseSettings.accountTable || DEFAULT_ACCOUNT_TABLE;
+    const enforcedTable = mergeWithDefaultTable(currentTable);
+
+    return {
+      ...baseSettings,
+      accountTable: enforcedTable,
+    };
   }, [selectedClient, settings]);
 
 
@@ -144,17 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         if (aHasCode && !bHasCode) return -1;
         if (!aHasCode && bHasCode) return 1;
 
-        // Both have codes, proceed with comparison
-        const isNumA = /^\d+$/.test(codeA!);
-        const isNumB = /^\d+$/.test(codeB!);
-
-        // If both are purely numeric, compare as numbers
-        if (isNumA && isNumB) {
-            return parseInt(codeA!, 10) - parseInt(codeB!, 10);
-        }
-
-        // Use localeCompare for alphanumeric or mixed cases.
-        // This will correctly sort "Item 2" before "Item 10".
+        // Both have codes, proceed with comparison using numeric sort
         return codeA!.localeCompare(codeB!, undefined, { numeric: true });
       })
       .map(cat => cat.name);

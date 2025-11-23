@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Using Firebase v8 compat syntax, imports are no longer needed here.
 import { db, auth, appId } from '../services/firebase';
@@ -23,7 +22,8 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
     const [activeTable, setActiveTable] = useState<'expenses' | 'income'>('expenses');
     const [currentPage, setCurrentPage] = useState(1);
     const [bulkCategory, setBulkCategory] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+    // Default sort by code
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: 'code', direction: 'ascending' });
     const ITEMS_PER_PAGE = 20;
 
     const requestSort = (key: keyof Transaction) => {
@@ -52,7 +52,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
                 if (typeof valA === 'number' && typeof valB === 'number') {
                     comparison = valA - valB;
                 } else {
-                    comparison = String(valA).localeCompare(String(valB));
+                    comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
                 }
 
                 return sortConfig.direction === 'ascending' ? comparison : -comparison;
@@ -68,7 +68,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
                 const codeB = b.code || '';
 
                 if (codeA && codeB) {
-                    const codeCompare = codeA.localeCompare(codeB);
+                    const codeCompare = codeA.localeCompare(codeB, undefined, { numeric: true });
                     if (codeCompare !== 0) return codeCompare;
                 } else if (codeA) {
                     return -1; // A has code, B doesn't, A comes first
@@ -94,7 +94,8 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
     useEffect(() => {
         setCurrentPage(1);
         setSelected([]);
-        setSortConfig({ key: null, direction: 'ascending' });
+        // Keep default sort consistent on tab switch
+        setSortConfig({ key: 'code', direction: 'ascending' });
     }, [activeTable]);
 
     const currentTableData = activeTable === 'expenses' ? expenseTx : incomeTx;

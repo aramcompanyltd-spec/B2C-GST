@@ -1,3 +1,4 @@
+
 import type { BankConfig, Bank, AccountCategory } from '../types';
 
 export const BANK_HEADERS: { [key: string]: BankConfig } = {
@@ -17,29 +18,24 @@ export const BANKS: Bank[] = [
 ];
 
 export const DEFAULT_ACCOUNT_TABLE: AccountCategory[] = [
-    { id: '1', name: 'Sales', ratio: 1.0, code: '', isDeletable: false },
-    { id: '2', name: 'Sales - Zero Rated', ratio: 0.0, code: '', isDeletable: false },
-    { id: '3', name: 'Purchases', ratio: 1.0, code: '', isDeletable: true },
-    { id: '4', name: 'Promotion & Marketing', ratio: 1.0, code: '', isDeletable: true },
-    { id: '5', name: 'Insurance', ratio: 1.0, code: '', isDeletable: true },
-    { id: '6', name: 'Rates', ratio: 1.0, code: '', isDeletable: true },
-    { id: '7', name: 'Salaries and Wages', ratio: 0.0, code: '', isDeletable: true },
-    { id: '8', name: 'Entertainment', ratio: 0.5, code: '', isDeletable: false },
-    { id: '9', name: 'General Expenses', ratio: 1.0, code: '', isDeletable: true },
-    { id: '10', name: 'Motor Vehicle Expenses', ratio: 0.25, code: '', isDeletable: true },
-    { id: '11', name: 'Power', ratio: 1.0, code: '', isDeletable: true },
-    { id: '12', name: 'Staff Expenses', ratio: 1.0, code: '', isDeletable: true },
-    { id: '13', name: 'Mobile Phone', ratio: 1.0, code: '', isDeletable: true },
-    { id: '14', name: 'Travel - National', ratio: 1.0, code: '', isDeletable: true },
-    { id: '15', name: 'Travel - International', ratio: 0.0, code: '', isDeletable: true },
-    { id: '16', name: 'HO - Body Corp', ratio: 0.3, code: '', isDeletable: true },
-    { id: '17', name: 'HO - Internet', ratio: 0.3, code: '', isDeletable: true },
-    { id: '18', name: 'HO - Maintenance', ratio: 0.3, code: '', isDeletable: true },
-    { id: '19', name: 'HO - Power', ratio: 0.3, code: '', isDeletable: true },
-    { id: '20', name: 'HO - Rates & Water', ratio: 0.3, code: '', isDeletable: true },
-    { id: '21', name: 'GST Payment or Refund', ratio: 0.0, code: '', isDeletable: true },
-    { id: '22', name: 'Transfers', ratio: 0.0, code: '', isDeletable: false },
-    { id: '23', name: 'Uncategorized', ratio: 0.0, code: '', isDeletable: false },
+    { id: '1', name: 'Sales', ratio: 1.0, code: '200', isDeletable: false },
+    { id: '2', name: 'Sales - Zero Rated', ratio: 0.0, code: '205', isDeletable: false },
+    { id: '3', name: 'Purchases', ratio: 1.0, code: '210', isDeletable: false },
+    { id: '4', name: 'Promotion & Marketing', ratio: 1.0, code: '290', isDeletable: false },
+    { id: '5', name: 'Entertainment', ratio: 0.5, code: '327', isDeletable: false },
+    { id: '6', name: 'General Expenses', ratio: 1.0, code: '335', isDeletable: false },
+    { id: '7', name: 'Insurance', ratio: 1.0, code: '340', isDeletable: false },
+    { id: '8', name: 'Power', ratio: 1.0, code: '384', isDeletable: false },
+    { id: '9', name: 'Motor Vehicle Expenses', ratio: 0.25, code: '410', isDeletable: false },
+    { id: '10', name: 'Home Office Expenses', ratio: 0.25, code: '425', isDeletable: false },
+    { id: '11', name: 'Rates', ratio: 1.0, code: '440', isDeletable: false },
+    { id: '12', name: 'Staff Expenses', ratio: 1.0, code: '457', isDeletable: false },
+    { id: '13', name: 'Mobile Phone', ratio: 1.0, code: '464', isDeletable: false },
+    { id: '14', name: 'Travel - National', ratio: 1.0, code: '469', isDeletable: false },
+    { id: '15', name: 'Travel - International', ratio: 0.0, code: '470', isDeletable: false },
+    { id: '17', name: 'GST Payment or Refund', ratio: 0.0, code: '630', isDeletable: false },
+    { id: '18', name: 'Transfers', ratio: 0.0, code: '997', isDeletable: false },
+    { id: '19', name: 'Uncategorized', ratio: 0.0, code: '998', isDeletable: false },
 ];
 
 export const CLASSIFICATION_KEYWORDS: { [key: string]: string[] } = {

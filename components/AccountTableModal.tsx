@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo } from 'react';
 import type { AccountCategory } from '../types';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -84,7 +85,7 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
         const codeA = a.code || '';
         const codeB = b.code || '';
         
-        const codeComparison = codeA.localeCompare(codeB);
+        const codeComparison = codeA.localeCompare(codeB, undefined, { numeric: true });
         if (codeComparison !== 0) return codeComparison;
 
         return a.name.localeCompare(b.name);
