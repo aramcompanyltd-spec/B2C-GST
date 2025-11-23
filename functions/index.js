@@ -2,21 +2,22 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 const db = admin.firestore();
-const APP_ID = 'default-app-id'; // Identifier used in Firestore path
+// Ensure this APP_ID matches the 'appId' in services/firebase.ts exactly.
+const APP_ID = 'default-app-id'; 
 
 /**
  * Listener 1: Monitor Checkout Sessions
- * This triggers when the Stripe Extension updates the checkout_sessions document.
- * We specifically listen for 'payment_status' becoming 'paid' or status becoming 'complete'.
+ * Triggers when Stripe updates the session status (e.g. to 'complete').
  */
 exports.monitorCheckoutSession = functions.firestore
   .document('customers/{userId}/checkout_sessions/{sessionId}')
   .onWrite(async (change, context) => {
-    const userId = context.params.userId;
-    const sessionId = context.params.sessionId;
+    const { userId, sessionId } = context.params;
 
     // Exit if document is deleted
     if (!change.after.exists) {
@@ -26,12 +27,8 @@ exports.monitorCheckoutSession = functions.firestore
 
     const sessionData = change.after.data();
     
-    // Detailed logging for debugging
-    console.log(`[monitorCheckoutSession] Processing ${sessionId} for user ${userId}. Status: ${sessionData.status}, PaymentStatus: ${sessionData.payment_status}`);
-
-    // Check strictly for processed flag to ensure idempotency
+    // Check if already processed to prevent duplicate credits
     if (sessionData.creditsAdded) {
-        console.log(`[monitorCheckoutSession] Session ${sessionId} already processed. Skipping.`);
         return null;
     }
 
@@ -44,119 +41,120 @@ exports.monitorCheckoutSession = functions.firestore
         paymentStatus === 'paid' || 
         paymentStatus === 'succeeded';
 
+    // Log trigger details
+    console.log(`[monitorCheckoutSession] Processing Session: ${sessionId} | User: ${userId}`);
+    console.log(`[monitorCheckoutSession] Status: ${status} | PaymentStatus: ${paymentStatus} | Paid Detected: ${isPaid}`);
+
     if (isPaid) {
       const metadata = sessionData.metadata || {};
-      // Parse credits, defaulting to 0. Handle potential string/number types.
-      const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
-      
-      console.log(`[monitorCheckoutSession] Paid session detected. Credits to add: ${creditsToAdd}. Metadata:`, metadata);
+      const creditsToAdd = Number(metadata.creditsToAdd || 0);
 
-      // Removed strict check for metadata.type to improve reliability.
-      // If creditsToAdd exists and is positive, we proceed.
+      console.log(`[monitorCheckoutSession] Metadata Credits: ${metadata.creditsToAdd} | Parsed: ${creditsToAdd}`);
+
       if (creditsToAdd > 0) {
-        console.log(`[monitorCheckoutSession] Processing ${creditsToAdd} credits for user ${userId}.`);
-        try {
-          // Atomic update: Mark processed AND add credits
-          await db.runTransaction(async (t) => {
-              const sessionRef = change.after.ref;
-              const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
-              
-              // Double check inside transaction to prevent race conditions
-              const currentSession = await t.get(sessionRef);
-              if (currentSession.data().creditsAdded) return;
+        const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
+        const sessionRef = change.after.ref;
 
-              t.set(sessionRef, { creditsAdded: true }, { merge: true });
-              t.set(userRef, {
-                  credits: admin.firestore.FieldValue.increment(creditsToAdd),
+        console.log(`[monitorCheckoutSession] Target User Path: ${userRef.path}`);
+
+        try {
+          await db.runTransaction(async (t) => {
+              // 1. Check session idempotency again inside transaction
+              const freshSession = await t.get(sessionRef);
+              if (freshSession.data().creditsAdded) {
+                  console.log('[monitorCheckoutSession] Transaction aborted: Already processed.');
+                  return;
+              }
+
+              // 2. Read User Document explicitly to ensure it exists
+              const userDoc = await t.get(userRef);
+              if (!userDoc.exists) {
+                  // CRITICAL DEBUG: If this throws, the path is wrong or user wasn't created properly.
+                  throw new Error(`User document NOT FOUND at: ${userRef.path}. Cannot add credits.`);
+              }
+
+              const userData = userDoc.data();
+              const currentCredits = typeof userData.credits === 'number' ? userData.credits : 0;
+              const newCredits = currentCredits + creditsToAdd;
+
+              console.log(`[monitorCheckoutSession] User Found. Current: ${currentCredits} -> New: ${newCredits}`);
+
+              // 3. Update User Credits
+              t.update(userRef, {
+                  credits: newCredits,
                   paymentStatus: 'paid',
                   lastPaymentId: sessionId,
                   lastPaymentSource: 'checkout_session',
                   lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
-              }, { merge: true });
+              });
+
+              // 4. Mark session as processed
+              t.update(sessionRef, { creditsAdded: true });
           });
 
-          console.log(`[monitorCheckoutSession] SUCCESS: Added ${creditsToAdd} credits to user ${userId}.`);
+          console.log(`[monitorCheckoutSession] SUCCESS: Transaction committed. Credits updated.`);
         } catch (error) {
-          console.error('[monitorCheckoutSession] ERROR updating user credits:', error);
+          console.error('[monitorCheckoutSession] TRANSACTION FAILED:', error.message);
+          // We do not throw here to prevent infinite retry loops if it's a logic error (like missing doc)
         }
       } else {
-          console.warn(`[monitorCheckoutSession] Paid session found but creditsToAdd is 0 or invalid. Metadata:`, metadata);
+          console.warn(`[monitorCheckoutSession] Paid session found but creditsToAdd is invalid: ${creditsToAdd}`);
       }
-    } else {
-        console.log(`[monitorCheckoutSession] Session ${sessionId} is not in a paid state yet.`);
     }
     return null;
   });
 
 /**
- * Listener 2: Monitor Payments Collection
- * This triggers if the Stripe Extension writes to the 'payments' collection (PaymentIntents).
- * This serves as a backup or primary listener depending on extension configuration.
+ * Listener 2: Backup for 'payments' collection updates
  */
 exports.addCreditsOnPayment = functions.firestore
   .document('customers/{userId}/payments/{paymentId}')
   .onWrite(async (change, context) => {
-    const userId = context.params.userId;
-    const paymentId = context.params.paymentId;
+    const { userId, paymentId } = context.params;
 
     if (!change.after.exists) return null;
 
     const paymentData = change.after.data();
+    const status = paymentData.status;
     
-    // Detailed logging
-    console.log(`[addCreditsOnPayment] Processing payment ${paymentId} for user ${userId}. Status: ${paymentData.status}`);
-
-    // Avoid double processing immediately
     if (paymentData.creditsAdded) return null;
 
-    const status = paymentData.status;
-    const paymentStatus = paymentData.payment_status;
-    
-    // Check broadly for success statuses including 'succeeded'
-    const isSuccess = 
-        status === 'succeeded' || 
-        status === 'paid' || 
-        status === 'complete' || 
-        paymentStatus === 'succeeded' || 
-        paymentStatus === 'paid' || 
-        paymentStatus === 'complete';
-    
+    const isSuccess = status === 'succeeded' || status === 'paid' || status === 'complete';
+        
     if (isSuccess) {
-       const metadata = paymentData.metadata || {};
-       const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
+        const creditsToAdd = Number(paymentData.metadata?.creditsToAdd || 0);
+        if (creditsToAdd > 0) {
+            console.log(`[addCreditsOnPayment] Processing Payment: ${paymentId} | User: ${userId} | Credits: ${creditsToAdd}`);
+            const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
+            const paymentRef = change.after.ref;
 
-       console.log(`[addCreditsOnPayment] Successful payment detected. Credits to add: ${creditsToAdd}.`);
+            try {
+                await db.runTransaction(async (t) => {
+                    const currentPayment = await t.get(paymentRef);
+                    if (currentPayment.data().creditsAdded) return;
 
-       // Removed strict check for metadata.type. 
-       // If we have creditsToAdd in metadata, we should process it.
-       if (creditsToAdd > 0) {
-         try {
-            await db.runTransaction(async (t) => {
-                const paymentRef = change.after.ref;
-                const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(userId);
-                
-                const currentPayment = await t.get(paymentRef);
-                if (currentPayment.data().creditsAdded) return;
+                    const userDoc = await t.get(userRef);
+                    if (!userDoc.exists) {
+                         console.error(`[addCreditsOnPayment] User doc missing at ${userRef.path}`);
+                         return;
+                    }
 
-                t.set(paymentRef, { creditsAdded: true }, { merge: true });
-                t.set(userRef, {
-                    credits: admin.firestore.FieldValue.increment(creditsToAdd),
-                    paymentStatus: status || 'succeeded',
-                    lastPaymentId: paymentId,
-                    lastPaymentSource: 'payment_document',
-                    lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            });
-
-            console.log(`[addCreditsOnPayment] SUCCESS: Added ${creditsToAdd} credits to user ${userId}.`);
-         } catch (error) {
-           console.error('[addCreditsOnPayment] ERROR updating user credits:', error);
-         }
-       } else {
-           // Log if payment succeeded but no credits found (useful for debugging)
-           console.log(`[addCreditsOnPayment] Payment succeeded but no creditsToAdd in metadata. ID: ${paymentId}, Metadata:`, metadata);
-       }
+                    const currentCredits = userDoc.data().credits || 0;
+                    
+                    t.update(userRef, {
+                        credits: currentCredits + creditsToAdd,
+                        paymentStatus: status,
+                        lastPaymentId: paymentId,
+                        lastPaymentSource: 'payment_doc',
+                        lastPaymentDate: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                    t.update(paymentRef, { creditsAdded: true });
+                });
+                console.log(`[addCreditsOnPayment] Success.`);
+            } catch (error) {
+                console.error('[addCreditsOnPayment] Error:', error);
+            }
+        }
     }
-    
     return null;
   });
