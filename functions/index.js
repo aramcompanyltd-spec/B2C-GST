@@ -25,20 +25,29 @@ exports.monitorCheckoutSession = functions.firestore
 
     const sessionData = change.after.data();
     
-    // Log to confirm we are seeing the field the user noticed
-    console.log(`[monitorCheckoutSession] Session ID: ${sessionId}, payment_status: ${sessionData.payment_status}`);
+    console.log(`[monitorCheckoutSession] Session ID: ${sessionId}, Status: ${sessionData.status}, PaymentStatus: ${sessionData.payment_status}`);
 
-    // CHECK: Explicitly look for "payment_status: 'paid'" as provided in the Stripe webhook payload.
-    // This is the field that confirms the payment is complete in a Checkout Session.
-    const isPaid = sessionData.payment_status === 'paid' || sessionData.status === 'succeeded';
+    // CHECK: Broaden the success check. 
+    // Standard Stripe Checkout: status='complete', payment_status='paid'.
+    // User Request: Check for 'succeeded' in payment_status as well.
+    const status = sessionData.status;
+    const paymentStatus = sessionData.payment_status;
+    
+    const isPaid = 
+        status === 'complete' || 
+        status === 'succeeded' || 
+        paymentStatus === 'paid' || 
+        paymentStatus === 'succeeded';
+
     const alreadyProcessed = sessionData.creditsAdded === true;
 
     if (isPaid && !alreadyProcessed) {
       const metadata = sessionData.metadata || {};
-      const creditsToAdd = parseInt(metadata.creditsToAdd || '0', 10);
+      // Ensure robust parsing of creditsToAdd
+      const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
       const type = metadata.type;
       
-      console.log(`[monitorCheckoutSession] Payment confirmed (Status: ${sessionData.payment_status}). Processing ${creditsToAdd} credits.`);
+      console.log(`[monitorCheckoutSession] Payment confirmed (Status: ${status}, PaymentStatus: ${paymentStatus}). Processing ${creditsToAdd} credits for user ${userId}.`);
 
       // Verify this transaction is for a credit top-up and has valid credits
       if (type === 'credit_topup' && creditsToAdd > 0) {
@@ -62,7 +71,7 @@ exports.monitorCheckoutSession = functions.firestore
           console.error('[monitorCheckoutSession] ERROR updating user credits:', error);
         }
       } else {
-          console.log(`[monitorCheckoutSession] SKIPPED. Valid payment but metadata mismatch. Type: ${type}, Credits: ${creditsToAdd}`);
+          console.log(`[monitorCheckoutSession] SKIPPED. Valid payment but metadata mismatch or zero credits. Type: ${type}, Credits: ${creditsToAdd}`);
       }
     }
     return null;
@@ -87,12 +96,13 @@ exports.addCreditsOnPayment = functions.firestore
     if (paymentData.creditsAdded) return null;
 
     const status = paymentData.status || paymentData.payment_status;
-    // Stripe PaymentIntents use 'succeeded', Checkout Sessions use 'paid'.
-    const isSuccess = ['succeeded', 'paid'].includes(status);
+    // Stripe PaymentIntents use 'succeeded'.
+    const isSuccess = ['succeeded', 'paid', 'complete'].includes(status);
     
     if (isSuccess) {
        const metadata = paymentData.metadata || {};
-       const creditsToAdd = parseInt(metadata.creditsToAdd || '0', 10);
+       // Ensure robust parsing of creditsToAdd
+       const creditsToAdd = parseInt(String(metadata.creditsToAdd || '0'), 10);
 
        if (metadata.type === 'credit_topup' && creditsToAdd > 0) {
          console.log(`[addCreditsOnPayment] Success payment found for ${paymentId}. Credits: ${creditsToAdd}`);
