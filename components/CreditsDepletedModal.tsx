@@ -3,10 +3,9 @@ import React from 'react';
 
 interface CreditsDepletedModalProps {
   onClose: () => void;
-  onTopUp?: () => void;
 }
 
-const CreditsDepletedModal: React.FC<CreditsDepletedModalProps> = ({ onClose, onTopUp }) => {
+const CreditsDepletedModal: React.FC<CreditsDepletedModalProps> = ({ onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="relative p-8 bg-white rounded-lg shadow-xl w-full max-w-md text-center" onClick={e => e.stopPropagation()}>
@@ -17,18 +16,10 @@ const CreditsDepletedModal: React.FC<CreditsDepletedModalProps> = ({ onClose, on
         <p className="text-gray-600 mb-6">
           You need <strong>20 credits</strong> to process a file upload.
           <br/>
-          Please top up your account to continue.
+          Please contact support to top up your account.
         </p>
         
         <div className="space-y-3">
-          {onTopUp && (
-             <button 
-                onClick={onTopUp} 
-                className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-300 font-bold text-lg shadow-md"
-              >
-                Top Up Credits
-              </button>
-          )}
           <div className="bg-gray-100 p-4 rounded-md">
               <p className="text-sm text-gray-500">Contact Support:</p>
               <a href="mailto:nzgstsimple@gmail.com" className="font-semibold text-blue-600 hover:underline">

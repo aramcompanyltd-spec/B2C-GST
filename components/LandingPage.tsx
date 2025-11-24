@@ -162,9 +162,7 @@ const TermsPage = ({ onBack }: { onBack: () => void }) => (
         <p>This service, "NZ GST Simple," provides an automated tool to assist New Zealand businesses in calculating their Goods and Services Tax (GST) returns by processing bank transaction files (CSV/XLSX).</p>
         <h4><strong>2. Privacy & Data Security</strong></h4>
         <p>We operate on a "Local Processing" model. Your bank transaction files are processed within your browser session. We do not store your transaction rows on our database. We only store your user profile, account settings, and usage statistics (e.g., number of files processed).</p>
-        <h4><strong>3. Payment and Credits</strong></h4>
-        <p>The service uses a pre-paid credit system. Payment must be made for any credit purchase. Credits are non-refundable once purchased, except where required by New Zealand Consumer Law.</p>
-        <h4><strong>4. Accuracy & Liability</strong></h4>
+        <h4><strong>3. Accuracy & Liability</strong></h4>
         <p>You are solely responsible for the accuracy and completeness of the data you upload. "NZ GST Simple" is an accounting aid tool and not a substitute for professional tax advice. The final responsibility for the accuracy and submission of GST returns to the IRD lies with the user.</p>
     </LegalPageWrapper>
 );
@@ -176,7 +174,7 @@ const PrivacyPage = ({ onBack }: { onBack: () => void }) => (
         <h4><strong>1. What We Collect</strong></h4>
         <ul>
             <li><strong>Account Info:</strong> Name, Email, and Encrypted Password (managed via Google Firebase Auth).</li>
-            <li><strong>Usage Data:</strong> We track <em>how many</em> files you upload to deduct credits, but we do not store the <em>content</em> of those files permanently.</li>
+            <li><strong>Usage Data:</strong> We track <em>how many</em> files you upload, but we do not store the <em>content</em> of those files permanently.</li>
         </ul>
 
         <h4><strong>2. What We DO NOT Collect</strong></h4>
@@ -194,7 +192,7 @@ const AboutPage = ({ onBack }: { onBack: () => void }) => (
     <LegalPageWrapper title="About Us" onBack={onBack}>
         <h4><strong>Our Mission</strong></h4>
         <p>At NZ GST Simple, our mission is to empower small businesses, freelancers, and sole traders across New Zealand by simplifying the complexities of GST compliance.</p>
-        <p>We realized that most accounting software is too expensive ($30-$60/month) and too complex for simple sole traders who just want to file their return every 2 or 6 months.</p>
+        <p>We realized that most accounting software is too expensive and too complex for simple sole traders who just want to file their return every 2 or 6 months.</p>
         
         <h4><strong>The "Local-First" Philosophy</strong></h4>
         <p>We built this tool with a security-first mindset. By processing data locally on your device, we eliminate the risk of mass data breaches involving financial history. You keep control of your data.</p>
@@ -261,33 +259,6 @@ const FaqPage = ({ onBack }: { onBack: () => void }) => (
                     <div>
                         <h4 className="font-bold text-lg text-blue-700">Can I add my own custom account categories?</h4>
                         <p className="text-gray-600 mt-1">Yes. Click the "Account Table" button in the top menu. You can add new expense or income categories, set their GST ratio (e.g., 50% claimable), and assign accounting codes.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section>
-                <h3 className="text-2xl font-bold text-gray-800 border-b pb-2 mb-6">4. Billing & Credits</h3>
-                <div className="space-y-6">
-                    <div>
-                        <h4 className="font-bold text-lg text-blue-700">How does pricing work?</h4>
-                        <p className="text-gray-600 mt-1">We use a "Pay As You Go" credit system. There are no monthly subscriptions. You purchase credits, and they are deducted only when you process files.</p>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-lg text-blue-700">How much does it cost?</h4>
-                        <div className="text-gray-600 mt-1">
-                            <p className="mb-2">Processing a single session (uploading files, categorizing, and generating a return) costs <strong>20 credits</strong>.</p>
-                            <p className="mb-2">We offer volume discounts when you top up:</p>
-                            <ul className="list-disc pl-5 space-y-1">
-                                <li><strong>$20 Top Up:</strong> 20 Credits (Standard)</li>
-                                <li><strong>$50 Top Up:</strong> 50 Credits + <span className="text-green-600 font-bold">5 Free Bonus Credits</span> (Total 55)</li>
-                                <li><strong>$100 Top Up:</strong> 100 Credits + <span className="text-green-600 font-bold">15 Free Bonus Credits</span> (Total 115)</li>
-                            </ul>
-                            <p className="mt-2 text-sm text-gray-500">1 Credit is approximately $1 NZD.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-lg text-blue-700">Do my credits expire?</h4>
-                        <p className="text-gray-600 mt-1">No, your purchased credits do not expire as long as your account remains active.</p>
                     </div>
                 </div>
             </section>

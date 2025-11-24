@@ -1,88 +1,178 @@
-const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { logger } = require("firebase-functions");
-const admin = require("firebase-admin");
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 
-admin.initializeApp();
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 const db = admin.firestore();
-const APP_ID = "default-app-id";
+const APP_ID = 'default-app-id'; // 반드시 Firestore 구조와 동일해야 함
 
 /**
- * Triggered when a document is written to the 'payments' subcollection
- * created by the "Run Payments with Stripe" Firebase Extension.
+ * Listener 1: Monitor Checkout Sessions
+ * Triggered when Stripe updates a checkout session
  */
-exports.addCreditsOnPayment = onDocumentWritten(
-  {
-    document: "customers/{uid}/payments/{paymentId}",
-    region: "australia-southeast1", // Ensure this matches your Firestore location
-  },
-  async (event) => {
-    // Check if document was deleted
-    if (!event.data.after.exists) {
+exports.monitorCheckoutSession = functions.firestore
+  .document('customers/{stripeCustomerId}/checkout_sessions/{sessionId}')
+  .onWrite(async (change, context) => {
+    const { stripeCustomerId, sessionId } = context.params;
+
+    if (!change.after.exists) {
+      console.log(`[monitorCheckoutSession] Deleted session: ${sessionId}`);
       return null;
     }
 
-    const { uid, paymentId } = event.params;
-    const payment = event.data.after.data();
+    const sessionData = change.after.data();
 
-    // 1. Check payment status
-    const status = payment.status;
-    if (status !== "succeeded" && status !== "paid") {
-      logger.info(`[Payment ${paymentId}] Status is '${status}'. Waiting for success.`);
-      return null;
-    }
+    // prevent double processing
+    if (sessionData.creditsAdded) return null;
 
-    // 2. Idempotency Check: Prevent double-counting
-    if (payment.credits_processed) {
-      logger.info(`[Payment ${paymentId}] Already processed.`);
-      return null;
-    }
+    const status = sessionData.status;
+    const paymentStatus = sessionData.payment_status;
 
-    // 3. Extract credit amount from metadata
-    const metadata = payment.metadata || {};
-    const creditsToAdd = parseInt(metadata.creditsToAdd || "0", 10);
+    const isPaid =
+      status === 'complete' ||
+      status === 'succeeded' ||
+      paymentStatus === 'paid' ||
+      paymentStatus === 'succeeded';
+
+    console.log(`[monitorCheckoutSession] Session ${sessionId} | Paid: ${isPaid}`);
+
+    if (!isPaid) return null;
+
+    const metadata = sessionData.metadata || {};
+    const creditsToAdd = Number(metadata.creditsToAdd || 0);
+
+    // ------- ★ 가장 중요한 부분: Firebase UID 매핑 --------
+    const firebaseUid =
+      metadata.firebase_uid ||
+      metadata.userId || // ← 당신이 넣은 key
+      stripeCustomerId; // fallback (거의 쓰지 않음)
+
+    console.log(`[monitorCheckoutSession] creditsToAdd=${creditsToAdd}, targetUid=${firebaseUid}`);
 
     if (creditsToAdd <= 0) {
-      logger.warn(`[Payment ${paymentId}] No valid creditsToAdd found in metadata.`);
+      console.warn(`[monitorCheckoutSession] Invalid creditsToAdd`);
       return null;
     }
 
-    logger.info(`[Payment ${paymentId}] Adding ${creditsToAdd} credits to user ${uid}.`);
+    const userRef = db
+      .collection('artifacts')
+      .doc(APP_ID)
+      .collection('users')
+      .doc(firebaseUid);
 
-    const userRef = db.collection("artifacts").doc(APP_ID).collection("users").doc(uid);
-    const paymentRef = event.data.after.ref;
+    const sessionRef = change.after.ref;
+
+    console.log(`[monitorCheckoutSession] Updating User Path: ${userRef.path}`);
 
     try {
-      await db.runTransaction(async (transaction) => {
-        const userDoc = await transaction.get(userRef);
-        
+      await db.runTransaction(async (t) => {
+        const freshSession = await t.get(sessionRef);
+        if (freshSession.data().creditsAdded) return;
+
+        const userDoc = await t.get(userRef);
         if (!userDoc.exists) {
-          throw new Error(`User document for ${uid} not found.`);
+          throw new Error(`User document NOT FOUND: ${userRef.path}`);
+        }
+
+        const userData = userDoc.data();
+        const currentCredits =
+          typeof userData.credits === 'number' ? userData.credits : 0;
+        const newCredits = currentCredits + creditsToAdd;
+
+        console.log(`[monitorCheckoutSession] Credits: ${currentCredits} → ${newCredits}`);
+
+        t.update(userRef, {
+          credits: newCredits,
+          lastPaymentId: sessionId,
+          lastPaymentSource: 'checkout_session',
+          paymentStatus: 'paid',
+          lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        t.update(sessionRef, { creditsAdded: true });
+      });
+
+      console.log(`[monitorCheckoutSession] SUCCESS`);
+    } catch (err) {
+      console.error(`[monitorCheckoutSession] ERROR: ${err.message}`);
+    }
+
+    return null;
+  });
+
+/**
+ * Listener 2: Backup — payments collection (Stripe extension)
+ */
+exports.addCreditsOnPayment = functions.firestore
+  .document('customers/{stripeCustomerId}/payments/{paymentId}')
+  .onWrite(async (change, context) => {
+    const { stripeCustomerId, paymentId } = context.params;
+
+    if (!change.after.exists) return null;
+
+    const payment = change.after.data();
+    const status = payment.status;
+
+    if (payment.creditsAdded) return null;
+
+    const isSuccess =
+      status === 'succeeded' ||
+      status === 'paid' ||
+      status === 'complete';
+
+    if (!isSuccess) return null;
+
+    const metadata = payment.metadata || {};
+    const creditsToAdd = Number(metadata.creditsToAdd || 0);
+
+    const firebaseUid =
+      metadata.firebase_uid ||
+      metadata.userId ||
+      stripeCustomerId;
+
+    console.log(`[addCreditsOnPayment] Payment ${paymentId}, credits=${creditsToAdd}, uid=${firebaseUid}`);
+
+    if (creditsToAdd <= 0) return null;
+
+    const userRef = db
+      .collection('artifacts')
+      .doc(APP_ID)
+      .collection('users')
+      .doc(firebaseUid);
+
+    const paymentRef = change.after.ref;
+
+    try {
+      await db.runTransaction(async (t) => {
+        const freshPayment = await t.get(paymentRef);
+        if (freshPayment.data().creditsAdded) return;
+
+        const userDoc = await t.get(userRef);
+        if (!userDoc.exists) {
+          console.error(`[addCreditsOnPayment] User not found at ${userRef.path}`);
+          return;
         }
 
         const userData = userDoc.data();
         const currentCredits = userData.credits || 0;
-        const newBalance = currentCredits + creditsToAdd;
 
-        // Update user credits
-        transaction.update(userRef, {
-          credits: newBalance,
+        t.update(userRef, {
+          credits: currentCredits + creditsToAdd,
+          paymentStatus: status,
           lastPaymentId: paymentId,
+          lastPaymentSource: 'payment_doc',
           lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-          paymentStatus: "paid",
         });
 
-        // Mark payment as processed
-        transaction.update(paymentRef, {
-          credits_processed: true,
-          processed_at: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        t.update(paymentRef, { creditsAdded: true });
       });
 
-      logger.info(`[Payment ${paymentId}] SUCCESS: Added ${creditsToAdd} credits.`);
-    } catch (error) {
-      logger.error(`[Payment ${paymentId}] Transaction failed:`, error);
+      console.log(`[addCreditsOnPayment] SUCCESS`);
+    } catch (err) {
+      console.error(`[addCreditsOnPayment] ERROR: ${err.message}`);
     }
 
     return null;
-  }
-);
+  });

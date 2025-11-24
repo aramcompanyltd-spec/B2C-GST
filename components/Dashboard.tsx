@@ -19,11 +19,10 @@ import SettingsModal from './SettingsModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import AdminInfoCard from './AdminInfoCard';
 import OnboardingGuide from './OnboardingGuide';
-import CreditsDepletedModal from './CreditsDepletedModal';
 import AgentDashboard from './AgentDashboard';
 import AccountTableModal from './AccountTableModal';
 import UploadHistoryModal from './UploadHistoryModal';
-import PaymentModal from './PaymentModal';
+import CreditsDepletedModal from './CreditsDepletedModal';
 
 
 interface DashboardProps {
@@ -72,12 +71,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAccountTableOpen, setIsAccountTableOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isCreditsDepletedOpen, setIsCreditsDepletedOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('calculator');
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ManagedUser | null>(null);
   const [showNewTaskConfirm, setShowNewTaskConfirm] = useState(false);
   const [showNewClientTaskConfirm, setShowNewClientTaskConfirm] = useState(false);
@@ -220,14 +218,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, []);
 
   const handleProcessFiles = (filesToProcess: FileSlot[]) => {
-    // COST: 20 credits per upload session.
-    const UPLOAD_COST = 20;
-    
-    if (!isAdmin && settings?.credits !== undefined && settings.credits < UPLOAD_COST) {
-      setShowCreditsModal(true);
-      return;
+    // Check credits before processing
+    const cost = filesToProcess.length * 20;
+    if ((settings?.credits || 0) < cost) {
+        setIsCreditsDepletedOpen(true);
+        return;
     }
-      
+
     setIsLoading(true);
     setError('');
     let processedCount = 0;
@@ -329,10 +326,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
               const userData = userDoc.data() as Settings;
               const newUploadCount = (userData.uploadCount || 0) + 1;
-              const currentCredits = userData.credits ?? 0;
+              const currentCredits = userData.credits || 0;
               
-              // Deduct 20 credits per upload session
-              const newCreditCount = !isAdmin ? Math.max(0, currentCredits - UPLOAD_COST) : currentCredits;
+              if (currentCredits < cost) {
+                  throw new Error("Insufficient credits during transaction processing.");
+              }
+              const newCredits = currentCredits - cost;
               
               // Store history in the user document array instead of subcollection to avoid permission issues
               const currentHistory = (userData.uploadHistory || []) as UploadRecord[];
@@ -349,11 +348,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
               transaction.update(userRef, {
                 uploadCount: newUploadCount,
-                credits: newCreditCount,
-                uploadHistory: updatedHistory
+                uploadHistory: updatedHistory,
+                credits: newCredits
               });
 
-              return { newUploadCount, newCreditCount, updatedHistory };
+              return { newUploadCount, updatedHistory, newCredits };
             })
             .then((res) => {
               if (res) {
@@ -361,14 +360,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 setSettings(s => s ? { 
                     ...s, 
                     uploadCount: res.newUploadCount, 
-                    credits: res.newCreditCount,
-                    uploadHistory: res.updatedHistory
+                    uploadHistory: res.updatedHistory,
+                    credits: res.newCredits
                 } : null);
               }
             })
             .catch(err => {
               console.error("Failed to update user stats:", err);
-              setError("Failed to save usage data. Please refresh and check your credits.");
+              // Don't show generic error if it was just credits (which should be caught earlier, but just in case of race condition)
+              if (err.message.includes("Insufficient credits")) {
+                  setIsCreditsDepletedOpen(true);
+              } else {
+                  setError("Failed to save usage data.");
+              }
             });
           }
           setIsLoading(false);
@@ -477,7 +481,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             onHistoryClick={() => setIsHistoryOpen(true)} 
             onNewTask={handleNewTask} 
             showNewTaskButton={false}
-            onTopUp={() => setIsPaymentModalOpen(true)} 
         />
         <AgentDashboard user={user} onClientSelect={handleClientSelect} settings={settings} />
 
@@ -503,9 +506,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             onClose={() => setIsHistoryOpen(false)} 
           />
         )}
-        {isPaymentModalOpen && (
-          <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} currentCredits={settings.credits} />
-        )}
       </div>
     )
   }
@@ -528,7 +528,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         showNewClientTaskButton={showNewClientTaskButton}
         isAgentView={settings.role === 'agent'}
         clientName={selectedClient?.companyName}
-        onTopUp={() => setIsPaymentModalOpen(true)}
       />
 
       {isAdmin && (
@@ -596,21 +595,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             onClose={() => setIsHistoryOpen(false)} 
           />
         )}
+      
+      {isCreditsDepletedOpen && (
+          <CreditsDepletedModal onClose={() => setIsCreditsDepletedOpen(false)} />
+      )}
         
-      {isPaymentModalOpen && (
-        <PaymentModal user={user} onClose={() => setIsPaymentModalOpen(false)} currentCredits={settings.credits} />
-      )}
-
-      {showCreditsModal && (
-        <CreditsDepletedModal 
-            onClose={() => setShowCreditsModal(false)} 
-            onTopUp={() => {
-                setShowCreditsModal(false);
-                setIsPaymentModalOpen(true);
-            }}
-        />
-      )}
-
       {transactionToDelete && (
         <DeleteConfirmationModal
           title="Confirm Deletion"
@@ -623,7 +612,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {showNewTaskConfirm && (
         <DeleteConfirmationModal
           title={settings.role === 'agent' ? "Back to Client List?" : "Start a New Task?"}
-          message="Are you sure? The current transaction data will be cleared. This action cannot be undone and may affect your credit balance."
+          message="Are you sure? The current transaction data will be cleared. This action cannot be undone."
           onConfirm={() => {
             handleNewTask();
             setShowNewTaskConfirm(false);
@@ -637,7 +626,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {showNewClientTaskConfirm && (
         <DeleteConfirmationModal
           title="Start a New Task?"
-          message="Are you sure? The current transaction data will be cleared. This action cannot be undone and may affect your credit balance."
+          message="Are you sure? The current transaction data will be cleared. This action cannot be undone."
           onConfirm={() => {
             startNewClientTask();
             setShowNewClientTaskConfirm(false);
