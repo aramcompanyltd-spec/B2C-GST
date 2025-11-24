@@ -12,8 +12,13 @@ const APP_ID = 'default-app-id';
 /**
  * Triggered when a document is written to the 'payments' subcollection 
  * created by the "Run Payments with Stripe" Firebase Extension.
+ * 
+ * IMPORTANT: Must be deployed to australia-southeast1 region 
+ * to match Firestore location
  */
-exports.addCreditsOnPayment = functions.firestore
+exports.addCreditsOnPayment = functions
+  .region('australia-southeast1')  // ← 리전 명시!
+  .firestore
   .document('customers/{uid}/payments/{paymentId}')
   .onWrite(async (change, context) => {
     const payment = change.after.data();
@@ -29,17 +34,12 @@ exports.addCreditsOnPayment = functions.firestore
     // 디버깅: 전체 payment 객체 로깅
     console.log(`[Payment ${paymentId}] Full payment data:`, JSON.stringify(payment, null, 2));
 
-    // 2. Check for success status - 다양한 필드 확인
-    // Stripe Extension은 버전에 따라 status, state, 또는 중첩된 필드를 사용할 수 있음
-    const status = payment.status || payment.state || payment.payment_details?.status;
+    // 2. Check for success status
+    const status = payment.status;
     
     console.log(`[Payment ${paymentId}] Status field value: '${status}'`);
     
-    // 가능한 성공 상태들 확인
-    const successStatuses = ['succeeded', 'paid', 'complete', 'completed'];
-    const isSuccessful = status && successStatuses.includes(status.toLowerCase());
-    
-    if (!isSuccessful) {
+    if (status !== 'succeeded' && status !== 'paid') {
       console.log(`[Payment ${paymentId}] Status is '${status}'. Not a successful payment. Waiting for success.`);
       return null;
     }
@@ -51,10 +51,7 @@ exports.addCreditsOnPayment = functions.firestore
     }
 
     // 4. Extract credits from metadata
-    // metadata가 중첩되어 있을 수 있음 (payment_intent_data.metadata)
-    const metadata = payment.metadata || 
-                     payment.payment_intent_data?.metadata || 
-                     {};
+    const metadata = payment.metadata || {};
     
     console.log(`[Payment ${paymentId}] Metadata:`, JSON.stringify(metadata, null, 2));
     
@@ -109,7 +106,6 @@ exports.addCreditsOnPayment = functions.firestore
     } catch (error) {
       console.error(`[Payment ${paymentId}] ❌ Transaction failed:`, error);
       console.error(`[Payment ${paymentId}] Error stack:`, error.stack);
-      // We do not re-throw error to avoid infinite retry loops if it's a logic error
     }
     
     return null;
