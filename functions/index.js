@@ -1,82 +1,61 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { logger } = require("firebase-functions");
+const admin = require("firebase-admin");
 
-// Initialize Admin SDK
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
+admin.initializeApp();
 const db = admin.firestore();
-const APP_ID = 'default-app-id';
+const APP_ID = "default-app-id";
 
 /**
- * Triggered when a document is written to the 'payments' subcollection 
+ * Triggered when a document is written to the 'payments' subcollection
  * created by the "Run Payments with Stripe" Firebase Extension.
- * 
- * IMPORTANT: Must be deployed to australia-southeast1 region 
- * to match Firestore location
  */
-exports.addCreditsOnPayment = functions
-  .region('australia-southeast1')  // ← 리전 명시!
-  .firestore
-  .document('customers/{uid}/payments/{paymentId}')
-  .onWrite(async (change, context) => {
-    const payment = change.after.data();
-    const paymentId = context.params.paymentId;
-    const uid = context.params.uid;
-
-    // 1. Check if document exists (it might have been deleted)
-    if (!payment) {
-      console.log(`[Payment ${paymentId}] Document deleted or doesn't exist.`);
+exports.addCreditsOnPayment = onDocumentWritten(
+  {
+    document: "customers/{uid}/payments/{paymentId}",
+    region: "australia-southeast1", // Ensure this matches your Firestore location
+  },
+  async (event) => {
+    // Check if document was deleted
+    if (!event.data.after.exists) {
       return null;
     }
 
-    // 디버깅: 전체 payment 객체 로깅
-    console.log(`[Payment ${paymentId}] Full payment data:`, JSON.stringify(payment, null, 2));
+    const { uid, paymentId } = event.params;
+    const payment = event.data.after.data();
 
-    // 2. Check for success status
+    // 1. Check payment status
     const status = payment.status;
-    
-    console.log(`[Payment ${paymentId}] Status field value: '${status}'`);
-    
-    if (status !== 'succeeded' && status !== 'paid') {
-      console.log(`[Payment ${paymentId}] Status is '${status}'. Not a successful payment. Waiting for success.`);
+    if (status !== "succeeded" && status !== "paid") {
+      logger.info(`[Payment ${paymentId}] Status is '${status}'. Waiting for success.`);
       return null;
     }
 
-    // 3. Idempotency Check: Prevent double-counting credits
+    // 2. Idempotency Check: Prevent double-counting
     if (payment.credits_processed) {
-      console.log(`[Payment ${paymentId}] Already processed at ${payment.processed_at}.`);
+      logger.info(`[Payment ${paymentId}] Already processed.`);
       return null;
     }
 
-    // 4. Extract credits from metadata
+    // 3. Extract credit amount from metadata
     const metadata = payment.metadata || {};
-    
-    console.log(`[Payment ${paymentId}] Metadata:`, JSON.stringify(metadata, null, 2));
-    
-    const creditsToAdd = parseInt(metadata.creditsToAdd || '0', 10);
+    const creditsToAdd = parseInt(metadata.creditsToAdd || "0", 10);
 
     if (creditsToAdd <= 0) {
-      console.log(`[Payment ${paymentId}] No valid credits to add found in metadata. Value: ${metadata.creditsToAdd}`);
+      logger.warn(`[Payment ${paymentId}] No valid creditsToAdd found in metadata.`);
       return null;
     }
 
-    console.log(`[Payment ${paymentId}] Processing top-up for User ${uid}. Adding ${creditsToAdd} credits.`);
+    logger.info(`[Payment ${paymentId}] Adding ${creditsToAdd} credits to user ${uid}.`);
 
-    // 사용자 문서 경로 확인
-    const userRef = db.collection('artifacts').doc(APP_ID).collection('users').doc(uid);
-    const paymentRef = change.after.ref;
-
-    console.log(`[Payment ${paymentId}] User document path: ${userRef.path}`);
+    const userRef = db.collection("artifacts").doc(APP_ID).collection("users").doc(uid);
+    const paymentRef = event.data.after.ref;
 
     try {
-      // Run as a transaction to ensure atomic updates
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
         
         if (!userDoc.exists) {
-          console.error(`[Payment ${paymentId}] User document for ${uid} not found at path: ${userRef.path}`);
           throw new Error(`User document for ${uid} not found.`);
         }
 
@@ -84,29 +63,26 @@ exports.addCreditsOnPayment = functions
         const currentCredits = userData.credits || 0;
         const newBalance = currentCredits + creditsToAdd;
 
-        console.log(`[Payment ${paymentId}] Current credits: ${currentCredits}, Adding: ${creditsToAdd}, New balance: ${newBalance}`);
-
-        // Update User Credits
+        // Update user credits
         transaction.update(userRef, {
           credits: newBalance,
           lastPaymentId: paymentId,
           lastPaymentDate: admin.firestore.FieldValue.serverTimestamp(),
-          paymentStatus: 'paid'
+          paymentStatus: "paid",
         });
 
-        // Mark payment as processed in the payments collection
+        // Mark payment as processed
         transaction.update(paymentRef, {
           credits_processed: true,
-          processed_at: admin.firestore.FieldValue.serverTimestamp()
+          processed_at: admin.firestore.FieldValue.serverTimestamp(),
         });
       });
 
-      console.log(`[Payment ${paymentId}] ✅ SUCCESS! Added ${creditsToAdd} credits to user ${uid}. Transaction completed.`);
-
+      logger.info(`[Payment ${paymentId}] SUCCESS: Added ${creditsToAdd} credits.`);
     } catch (error) {
-      console.error(`[Payment ${paymentId}] ❌ Transaction failed:`, error);
-      console.error(`[Payment ${paymentId}] Error stack:`, error.stack);
+      logger.error(`[Payment ${paymentId}] Transaction failed:`, error);
     }
-    
+
     return null;
-  });
+  }
+);
