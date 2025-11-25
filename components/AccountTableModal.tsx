@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { AccountCategory } from '../types';
+import { DEFAULT_ACCOUNT_TABLE } from '../utils/constants';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 interface AccountTableModalProps {
@@ -15,7 +16,9 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editedRow, setEditedRow] = useState<AccountCategory | null>(null);
   const [saveFeedback, setSaveFeedback] = useState('');
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  
+  // State to track which type of reset is being requested: 'agent' or 'system'
+  const [resetMode, setResetMode] = useState<'agent' | 'system' | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<AccountCategory | null>(null);
 
   const handleAddNew = () => {
@@ -77,11 +80,13 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
     }, 2000);
   };
 
-  const handleResetToDefault = () => {
-    if (agentDefaultTable) {
+  const confirmReset = () => {
+    if (resetMode === 'agent' && agentDefaultTable) {
       setTable(JSON.parse(JSON.stringify(agentDefaultTable)));
+    } else if (resetMode === 'system') {
+      setTable(JSON.parse(JSON.stringify(DEFAULT_ACCOUNT_TABLE)));
     }
-    setShowResetConfirm(false);
+    setResetMode(null);
   };
 
   const headers = ['Account', 'Code', 'GST Ratio (%)', 'Actions'];
@@ -164,12 +169,20 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
         </div>
 
         <div className="p-6 border-t flex justify-between items-center">
-          <div>
+          <div className="flex space-x-4 items-center">
             <button onClick={handleAddNew} className="text-sm text-blue-600 hover:underline font-semibold">+ Add New Account</button>
+            
+            <button
+                onClick={() => setResetMode('system')}
+                className="text-sm text-gray-500 hover:text-gray-800 hover:underline border-l pl-4"
+            >
+                Reset to System Default
+            </button>
+
             {agentDefaultTable && (
                 <button
-                    onClick={() => setShowResetConfirm(true)}
-                    className="ml-4 text-sm text-orange-600 hover:underline font-semibold"
+                    onClick={() => setResetMode('agent')}
+                    className="text-sm text-orange-600 hover:underline font-semibold border-l pl-4"
                 >
                     Reset to Agent's Default
                 </button>
@@ -181,12 +194,17 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
             <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Close</button>
           </div>
         </div>
-        {showResetConfirm && (
+        
+        {resetMode && (
           <DeleteConfirmationModal
             title="Confirm Reset"
-            message="Are you sure you want to reset this client's account table to the agent's default? Any custom changes will be lost."
-            onConfirm={handleResetToDefault}
-            onCancel={() => setShowResetConfirm(false)}
+            message={
+                resetMode === 'agent' 
+                ? "Are you sure you want to reset this client's account table to the agent's default? Any custom changes will be lost."
+                : "Are you sure you want to reset the account table to the system default? All custom accounts and settings will be lost."
+            }
+            onConfirm={confirmReset}
+            onCancel={() => setResetMode(null)}
             confirmText="Reset"
             confirmColor="bg-orange-500 hover:bg-orange-600"
           />

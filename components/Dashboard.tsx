@@ -30,8 +30,7 @@ interface DashboardProps {
 }
 
 // Helper function to merge user table with default structure.
-// UPDATED: Respects the user's existing table structure (allowing deletions)
-// but ensures that if a default category exists in the user's table, it has a code.
+// UPDATED: Filters out deprecated "HO -" accounts and updates codes/ratios for matching defaults.
 const mergeWithDefaultTable = (userTable: AccountCategory[]) => {
     // If the user has no table (new user), return defaults.
     if (!userTable || userTable.length === 0) {
@@ -40,16 +39,32 @@ const mergeWithDefaultTable = (userTable: AccountCategory[]) => {
 
     const defaultMap = new Map(DEFAULT_ACCOUNT_TABLE.map(d => [d.name, d]));
     
-    // Iterate through user's existing categories.
-    // If a category matches a default one, ensure it has a code (if missing).
-    // This preserves deletions: if a default cat isn't in userTable, it won't be re-added.
-    return userTable.map(cat => {
+    // Legacy accounts to explicitly remove
+    const deprecatedAccounts = new Set([
+        'HO - Body Corp',
+        'HO - Internet',
+        'HO - Maintenance',
+        'HO - Power',
+        'HO - Rates & Water'
+    ]);
+
+    // 1. Filter out deprecated accounts from user table
+    const cleanedUserTable = userTable.filter(cat => !deprecatedAccounts.has(cat.name));
+
+    // 2. Update existing categories with latest codes/ratios from defaultMap
+    const updatedUserTable = cleanedUserTable.map(cat => {
         const def = defaultMap.get(cat.name);
         if (def) {
-             return { ...cat, code: cat.code || def.code }; 
+             return { ...cat, code: def.code, ratio: def.ratio }; 
         }
         return cat;
     });
+
+    // 3. (Optional) If you wanted to force-add new defaults that the user doesn't have,
+    // you could do that here. For now, we respect the user's list (minus deprecated items)
+    // but ensure if they DO have a default item, it matches the official specs.
+    
+    return updatedUserTable;
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
