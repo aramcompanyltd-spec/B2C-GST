@@ -56,7 +56,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ initialIsLogin, onClose }) => {
             },
             role: 'user',
             status: 'active',
-            credits: 0, // Default credits for new users (Changed from 30 to 0)
+            credits: 1000, // Default credits for new users (Changed to 1000)
             uploadCount: 0, // Initialize upload count
             uploadHistory: [], // Initialize upload history
             mapping: {},
