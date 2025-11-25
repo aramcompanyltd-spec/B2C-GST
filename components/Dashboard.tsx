@@ -29,38 +29,27 @@ interface DashboardProps {
   user: FirebaseUser;
 }
 
-// Helper function to strictly merge user table with default structure
-// ensuring default codes and ratios are enforced while keeping custom categories.
+// Helper function to merge user table with default structure.
+// UPDATED: Respects the user's existing table structure (allowing deletions)
+// but ensures that if a default category exists in the user's table, it has a code.
 const mergeWithDefaultTable = (userTable: AccountCategory[]) => {
-    const tableMap = new Map(userTable.map(c => [c.name, c]));
-    
-    // Map standard categories, overwriting details to match standard but preserving IDs if they exist
-    const mergedDefaults = DEFAULT_ACCOUNT_TABLE.map(def => {
-        const existing = tableMap.get(def.name);
-        return existing 
-          ? { ...existing, code: def.code, ratio: def.ratio, isDeletable: def.isDeletable } 
-          : { ...def }; // Clone to avoid reference issues
-    });
-    
-    // Find custom categories (those not in default)
-    const defaultNames = new Set(DEFAULT_ACCOUNT_TABLE.map(d => d.name));
-    
-    // Explicitly filter out legacy categories requested for deletion
-    const deprecatedCategories = new Set([
-        'HO - Body Corp',
-        'HO - Internet',
-        'HO - Maintenance',
-        'HO - Power',
-        'HO - Rates & Water',
-        'Salary and Wages',
-        'Salaries and Wages'
-    ]);
+    // If the user has no table (new user), return defaults.
+    if (!userTable || userTable.length === 0) {
+        return DEFAULT_ACCOUNT_TABLE;
+    }
 
-    const customCategories = userTable.filter(c => 
-        !defaultNames.has(c.name) && !deprecatedCategories.has(c.name)
-    );
+    const defaultMap = new Map(DEFAULT_ACCOUNT_TABLE.map(d => [d.name, d]));
     
-    return [...mergedDefaults, ...customCategories];
+    // Iterate through user's existing categories.
+    // If a category matches a default one, ensure it has a code (if missing).
+    // This preserves deletions: if a default cat isn't in userTable, it won't be re-added.
+    return userTable.map(cat => {
+        const def = defaultMap.get(cat.name);
+        if (def) {
+             return { ...cat, code: cat.code || def.code }; 
+        }
+        return cat;
+    });
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
@@ -140,8 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     
     if (!baseSettings) return null;
 
-    // Always enforce default table structure to ensure codes/ratios are up to date
-    // This fixes issues where old data might be missing codes.
+    // Use updated merge logic that respects deletions
     const currentTable = baseSettings.accountTable || DEFAULT_ACCOUNT_TABLE;
     const enforcedTable = mergeWithDefaultTable(currentTable);
 

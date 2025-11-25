@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 import type { AccountCategory } from '../types';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -18,6 +16,7 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
   const [editedRow, setEditedRow] = useState<AccountCategory | null>(null);
   const [saveFeedback, setSaveFeedback] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<AccountCategory | null>(null);
 
   const handleAddNew = () => {
     const newCategory: AccountCategory = {
@@ -31,8 +30,15 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
     handleStartEdit(newCategory);
   };
 
-  const handleDelete = (id: string) => {
-    setTable(prev => prev.filter(row => row.id !== id));
+  const requestDelete = (account: AccountCategory) => {
+    setAccountToDelete(account);
+  };
+
+  const confirmDelete = () => {
+    if (accountToDelete) {
+        setTable(prev => prev.filter(row => row.id !== accountToDelete.id));
+        setAccountToDelete(null);
+    }
   };
   
   const handleStartEdit = (row: AccountCategory) => {
@@ -146,9 +152,7 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
                       ) : (
                         <div className="flex items-center space-x-2">
                           <button onClick={() => handleStartEdit(row)} className="text-blue-600 hover:text-blue-800 p-1">Edit</button>
-                          {row.isDeletable && (
-                            <button onClick={() => handleDelete(row.id)} className="text-red-600 hover:text-red-800 p-1">Delete</button>
-                          )}
+                          <button onClick={() => requestDelete(row)} className="text-red-600 hover:text-red-800 p-1">Delete</button>
                         </div>
                       )}
                     </td>
@@ -185,6 +189,16 @@ const AccountTableModal: React.FC<AccountTableModalProps> = ({ initialTable, onS
             onCancel={() => setShowResetConfirm(false)}
             confirmText="Reset"
             confirmColor="bg-orange-500 hover:bg-orange-600"
+          />
+        )}
+        {accountToDelete && (
+          <DeleteConfirmationModal
+            title="Delete Account"
+            message={`Are you sure you want to delete '${accountToDelete.name}'? This action cannot be undone.`}
+            onConfirm={confirmDelete}
+            onCancel={() => setAccountToDelete(null)}
+            confirmText="Delete"
+            confirmColor="bg-red-600 hover:bg-red-700"
           />
         )}
       </div>
