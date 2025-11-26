@@ -42,6 +42,31 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
             const key = sortConfig.key as keyof Transaction;
             
             const sorter = (a: Transaction, b: Transaction) => {
+                // Special handling for 'code' sorting to match user requirement:
+                // 1. Sort by Code (Ascending/Descending)
+                // 2. Then by Payee (Always Ascending)
+                if (key === 'code') {
+                    const codeA = (a.code || '').trim();
+                    const codeB = (b.code || '').trim();
+                    
+                    // Empty codes go to the bottom
+                    if (codeA === '' && codeB === '') {
+                         return (a.Payee || '').localeCompare(b.Payee || '');
+                    }
+                    if (codeA === '') return 1;
+                    if (codeB === '') return -1;
+                    
+                    const codeCompare = codeA.localeCompare(codeB, undefined, { numeric: true });
+                    
+                    if (codeCompare !== 0) {
+                        return sortConfig.direction === 'ascending' ? codeCompare : -codeCompare;
+                    }
+                    
+                    // Secondary sort: Payee Ascending
+                    return (a.Payee || '').localeCompare(b.Payee || '');
+                }
+
+                // Generic sorting for other columns
                 const valA = a[key];
                 const valB = b[key];
 
@@ -62,10 +87,10 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
             expense = expense.sort(sorter);
 
         } else {
-            // Default sorting logic
+            // Default sorting logic (Fallback if no sortConfig key)
             const sortTransactions = (a: Transaction, b: Transaction): number => {
-                const codeA = a.code || '';
-                const codeB = b.code || '';
+                const codeA = (a.code || '').trim();
+                const codeB = (b.code || '').trim();
 
                 if (codeA && codeB) {
                     const codeCompare = codeA.localeCompare(codeB, undefined, { numeric: true });
@@ -76,11 +101,7 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
                     return 1; // B has code, A doesn't, B comes first
                 }
 
-                // If codes are same or both are empty, sort by category name
-                const catCompare = a.category.localeCompare(b.category);
-                if (catCompare !== 0) return catCompare;
-
-                // Then by payee as a fallback
+                // Then by payee as a fallback (Removed category comparison as per request to strictly follow Code -> Payee)
                 return a.Payee.localeCompare(b.Payee);
             };
             
@@ -148,7 +169,9 @@ const TransactionsSection: React.FC<TransactionsSectionProps> = ({ data, categor
             // Use a very high character for empty codes to push them to the end.
             const codeA = a.code || '\uFFFF'; 
             const codeB = b.code || '\uFFFF';
-            return String(codeA).localeCompare(String(codeB), undefined, { numeric: true });
+            const cmp = String(codeA).localeCompare(String(codeB), undefined, { numeric: true });
+            if (cmp !== 0) return cmp;
+            return a.Payee.localeCompare(b.Payee);
         });
 
         const reportData = sortedData.map(tx => ({
